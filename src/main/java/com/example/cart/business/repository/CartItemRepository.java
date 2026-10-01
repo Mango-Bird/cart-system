@@ -1,11 +1,15 @@
 package com.example.cart.business.repository;
 
 import com.example.cart.business.model.CartItem;
+import java.util.List;
+import java.util.Optional;
 
 public interface CartItemRepository {
-    CartItem findById(Long id);
-    CartItem findByIdAndCartId(Long itemId, Long cartId);
-    CartItem findByCartIdAndProductId(Long cartId, Long productId);
+    Optional<CartItem> findByCartIdAndProductId(Long cartId, Long productId);
+
+    List<CartItem> findByCartId(Long cartId);
+
     CartItem save(CartItem cartItem);
-    void deleteById(Long id);
+
+    void delete(CartItem cartItem);
 }
