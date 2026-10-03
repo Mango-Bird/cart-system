@@ -1,6 +1,7 @@
 package com.example.cart.business.service;
 
 import com.example.cart.business.cache.CartCache;
+import com.example.cart.business.exception.CartItemNotFoundException;
 import com.example.cart.business.exception.CartNotFoundException;
 import com.example.cart.business.exception.InsufficientStockException;
 import com.example.cart.business.exception.InvalidCartItemException;
@@ -71,6 +72,30 @@ public class CartService {
             cartItem.setQuantity((int) finalQuantity);
         }
 
+        cartItemRepository.save(cartItem);
+        cartCache.evict(userId);
+        return cart;
+    }
+
+    public Cart updateItem(Long userId, Long productId, int quantity) {
+        if (quantity <= 0) {
+            throw new InvalidCartItemException("Cart item quantity must be greater than zero");
+        }
+
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ProductNotFoundException(productId));
+
+        Cart cart = cartRepository.findByUserId(userId)
+                .orElseThrow(() -> new CartNotFoundException(userId));
+
+        CartItem cartItem = cartItemRepository.findByCartIdAndProductId(cart.getId(), productId)
+                .orElseThrow(() -> new CartItemNotFoundException(cart.getId(), productId));
+
+        if (quantity > product.getStock()) {
+            throw new InsufficientStockException(productId, quantity, product.getStock());
+        }
+
+        cartItem.setQuantity(quantity);
         cartItemRepository.save(cartItem);
         cartCache.evict(userId);
         return cart;
