@@ -8,6 +8,13 @@ import com.example.cart.presentation.dto.cart.CartItemResponse;
 import com.example.cart.presentation.dto.cart.CartResponse;
 import com.example.cart.presentation.dto.cart.UpdateCartItemRequest;
 import java.util.List;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,12 +36,32 @@ public class CartController {
     }
 
     @GetMapping
-    public ResponseEntity<CartResponse> getCart(@RequestHeader("X-User-Id") Long userId) {
+    @Operation(summary = "Get the current user's cart")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Cart returned", content = @Content(
+                    schema = @Schema(implementation = CartResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Cart not found", content = @Content(
+                    schema = @Schema(implementation = com.example.cart.presentation.dto.common.ErrorResponse.class)))
+    })
+    public ResponseEntity<CartResponse> getCart(@Parameter(name = "X-User-Id", in = ParameterIn.HEADER,
+            required = true, description = "Temporary user identification header for Phase 1 integration. Will be replaced by JWT authentication when security infrastructure is integrated.")
+            @RequestHeader("X-User-Id") Long userId) {
         return ResponseEntity.ok(toResponse(cartService.getCartByUserId(userId)));
     }
 
     @PostMapping("/items")
+    @Operation(summary = "Add an item to the current user's cart")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Cart item added", content = @Content(
+                    schema = @Schema(implementation = CartResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid quantity or insufficient stock", content = @Content(
+                    schema = @Schema(implementation = com.example.cart.presentation.dto.common.ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Cart or product not found", content = @Content(
+                    schema = @Schema(implementation = com.example.cart.presentation.dto.common.ErrorResponse.class)))
+    })
     public ResponseEntity<CartResponse> addItem(
+            @Parameter(name = "X-User-Id", in = ParameterIn.HEADER, required = true,
+                    description = "Temporary user identification header for Phase 1 integration. Will be replaced by JWT authentication when security infrastructure is integrated.")
             @RequestHeader("X-User-Id") Long userId,
             @RequestBody AddCartItemRequest request) {
         Cart cart = cartService.addItem(userId, request.productId(), request.quantity());
@@ -42,8 +69,20 @@ public class CartController {
     }
 
     @PutMapping("/items/{productId}")
+    @Operation(summary = "Update an item quantity in the current user's cart")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Cart item updated", content = @Content(
+                    schema = @Schema(implementation = CartResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid quantity or insufficient stock", content = @Content(
+                    schema = @Schema(implementation = com.example.cart.presentation.dto.common.ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Cart, product, or cart item not found", content = @Content(
+                    schema = @Schema(implementation = com.example.cart.presentation.dto.common.ErrorResponse.class)))
+    })
     public ResponseEntity<CartResponse> updateItem(
+            @Parameter(name = "X-User-Id", in = ParameterIn.HEADER, required = true,
+                    description = "Temporary user identification header for Phase 1 integration. Will be replaced by JWT authentication when security infrastructure is integrated.")
             @RequestHeader("X-User-Id") Long userId,
+            @Parameter(description = "Product ID", required = true)
             @PathVariable Long productId,
             @RequestBody UpdateCartItemRequest request) {
         Cart cart = cartService.updateItem(userId, productId, request.quantity());
@@ -51,8 +90,18 @@ public class CartController {
     }
 
     @DeleteMapping("/items/{productId}")
+    @Operation(summary = "Delete an item from the current user's cart")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Cart item deleted", content = @Content(
+                    schema = @Schema(implementation = CartResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Cart or cart item not found", content = @Content(
+                    schema = @Schema(implementation = com.example.cart.presentation.dto.common.ErrorResponse.class)))
+    })
     public ResponseEntity<CartResponse> deleteItem(
+            @Parameter(name = "X-User-Id", in = ParameterIn.HEADER, required = true,
+                    description = "Temporary user identification header for Phase 1 integration. Will be replaced by JWT authentication when security infrastructure is integrated.")
             @RequestHeader("X-User-Id") Long userId,
+            @Parameter(description = "Product ID", required = true)
             @PathVariable Long productId) {
         Cart cart = cartService.deleteItem(userId, productId);
         return ResponseEntity.ok(toResponse(cart));
