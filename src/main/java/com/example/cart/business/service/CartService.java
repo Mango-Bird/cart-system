@@ -13,6 +13,7 @@ import com.example.cart.business.repository.CartItemRepository;
 import com.example.cart.business.repository.CartRepository;
 import com.example.cart.business.repository.ProductRepository;
 import java.util.List;
+import java.util.Objects;
 
 public class CartService {
     private final CartRepository cartRepository;
@@ -97,6 +98,19 @@ public class CartService {
 
         cartItem.setQuantity(quantity);
         cartItemRepository.save(cartItem);
+        cartCache.evict(userId);
+        return cart;
+    }
+
+    public Cart deleteItem(Long userId, Long productId) {
+        Cart cart = cartRepository.findByUserId(userId)
+                .orElseThrow(() -> new CartNotFoundException(userId));
+
+        CartItem cartItem = cartItemRepository.findByCartIdAndProductId(cart.getId(), productId)
+                .orElseThrow(() -> new CartItemNotFoundException(cart.getId(), productId));
+
+        cartItemRepository.delete(cartItem);
+        cart.getItems().removeIf(item -> Objects.equals(item.getProductId(), productId));
         cartCache.evict(userId);
         return cart;
     }
