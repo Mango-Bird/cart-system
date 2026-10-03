@@ -73,7 +73,9 @@ public class CartService {
             cartItem.setQuantity((int) finalQuantity);
         }
 
-        cartItemRepository.save(cartItem);
+        CartItem savedCartItem = cartItemRepository.save(cartItem);
+        cart.getItems().removeIf(item -> Objects.equals(item.getProductId(), productId));
+        cart.getItems().add(savedCartItem);
         cartCache.evict(userId);
         return cart;
     }
@@ -97,7 +99,9 @@ public class CartService {
         }
 
         cartItem.setQuantity(quantity);
-        cartItemRepository.save(cartItem);
+        CartItem savedCartItem = cartItemRepository.save(cartItem);
+        cart.getItems().removeIf(item -> Objects.equals(item.getProductId(), productId));
+        cart.getItems().add(savedCartItem);
         cartCache.evict(userId);
         return cart;
     }
