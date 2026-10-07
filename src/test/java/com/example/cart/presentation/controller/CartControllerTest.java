@@ -26,6 +26,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+
 @WebMvcTest(CartController.class)
 @AutoConfigureMockMvc(addFilters = false)
 class CartControllerTest {
@@ -39,11 +46,32 @@ class CartControllerTest {
     @MockitoBean
     private CartService cartService;
 
+    @BeforeEach
+    void setUpAuthentication() {
+        Authentication authentication =
+                UsernamePasswordAuthenticationToken.authenticated(
+                        USER_ID,
+                        null,
+                        List.of()
+                );
+
+        SecurityContext context =
+                SecurityContextHolder.createEmptyContext();
+
+        context.setAuthentication(authentication);
+        SecurityContextHolder.setContext(context);
+    }
+
+    @AfterEach
+    void clearAuthentication() {
+        SecurityContextHolder.clearContext();
+    }
+
     @Test
-    void getCartPassesHeaderUserIdToService() throws Exception {
+    void getCartPassesAuthenticatedUserIdToService() throws Exception {
         when(cartService.getCartByUserId(USER_ID)).thenReturn(cartWithOneItem());
 
-        mockMvc.perform(get("/api/cart").header("X-User-Id", USER_ID))
+        mockMvc.perform(get("/api/cart"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").value(31))
@@ -55,11 +83,10 @@ class CartControllerTest {
     }
 
     @Test
-    void addItemPassesHeaderAndRequestFieldsToService() throws Exception {
+    void addItemPassesAuthenticatedUserIdAndRequestFieldsToService() throws Exception {
         when(cartService.addItem(USER_ID, PRODUCT_ID, 2)).thenReturn(cartWithOneItem());
 
         mockMvc.perform(post("/api/cart/items")
-                        .header("X-User-Id", USER_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"productId":23,"quantity":2}
@@ -75,11 +102,10 @@ class CartControllerTest {
     }
 
     @Test
-    void updateItemPassesHeaderPathAndRequestFieldsToService() throws Exception {
+    void updateItemPassesAuthenticatedUserIdPathAndRequestFieldsToService() throws Exception {
         when(cartService.updateItem(USER_ID, PRODUCT_ID, 4)).thenReturn(cartWithQuantity(4));
 
         mockMvc.perform(put("/api/cart/items/23")
-                        .header("X-User-Id", USER_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"quantity":4}
@@ -91,10 +117,10 @@ class CartControllerTest {
     }
 
     @Test
-    void deleteItemPassesHeaderAndPathProductIdToService() throws Exception {
+    void deleteItemPassesAuthenticatedUserIdAndPathProductIdToService() throws Exception {
         when(cartService.deleteItem(USER_ID, PRODUCT_ID)).thenReturn(new Cart(31L, USER_ID, List.of()));
 
-        mockMvc.perform(delete("/api/cart/items/23").header("X-User-Id", USER_ID))
+        mockMvc.perform(delete("/api/cart/items/23"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").value(31))
@@ -147,7 +173,7 @@ class CartControllerTest {
 
     private void expectError(org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder request,
                              int statusCode, String message) throws Exception {
-        mockMvc.perform(request.header("X-User-Id", USER_ID))
+        mockMvc.perform(request)
                 .andExpect(status().is(statusCode))
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(statusCode))

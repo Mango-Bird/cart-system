@@ -1,6 +1,6 @@
 package com.example.cart.presentation.controller;
 
-import com.example.cart.business.model.Cart;
+import  com.example.cart.business.model.Cart;
 import com.example.cart.business.model.CartItem;
 import com.example.cart.business.service.CartService;
 import com.example.cart.presentation.dto.cart.AddCartItemRequest;
@@ -10,19 +10,18 @@ import com.example.cart.presentation.dto.cart.UpdateCartItemRequest;
 import java.util.List;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -43,10 +42,12 @@ public class CartController {
             @ApiResponse(responseCode = "404", description = "Cart not found", content = @Content(
                     schema = @Schema(implementation = com.example.cart.presentation.dto.common.ErrorResponse.class)))
     })
-    public ResponseEntity<CartResponse> getCart(@Parameter(name = "X-User-Id", in = ParameterIn.HEADER,
-            required = true, description = "Temporary user identification header for Phase 1 integration. Will be replaced by JWT authentication when security infrastructure is integrated.")
-            @RequestHeader("X-User-Id") Long userId) {
-        return ResponseEntity.ok(toResponse(cartService.getCartByUserId(userId)));
+    public ResponseEntity<CartResponse> getCart(
+            @AuthenticationPrincipal Long userId
+    ) {
+        return ResponseEntity.ok(
+                toResponse(cartService.getCartByUserId(userId))
+        );
     }
 
     @PostMapping("/items")
@@ -60,11 +61,15 @@ public class CartController {
                     schema = @Schema(implementation = com.example.cart.presentation.dto.common.ErrorResponse.class)))
     })
     public ResponseEntity<CartResponse> addItem(
-            @Parameter(name = "X-User-Id", in = ParameterIn.HEADER, required = true,
-                    description = "Temporary user identification header for Phase 1 integration. Will be replaced by JWT authentication when security infrastructure is integrated.")
-            @RequestHeader("X-User-Id") Long userId,
-            @RequestBody AddCartItemRequest request) {
-        Cart cart = cartService.addItem(userId, request.productId(), request.quantity());
+            @AuthenticationPrincipal Long userId,
+            @RequestBody AddCartItemRequest request
+    ) {
+        Cart cart = cartService.addItem(
+                userId,
+                request.productId(),
+                request.quantity()
+        );
+
         return ResponseEntity.ok(toResponse(cart));
     }
 
@@ -79,13 +84,17 @@ public class CartController {
                     schema = @Schema(implementation = com.example.cart.presentation.dto.common.ErrorResponse.class)))
     })
     public ResponseEntity<CartResponse> updateItem(
-            @Parameter(name = "X-User-Id", in = ParameterIn.HEADER, required = true,
-                    description = "Temporary user identification header for Phase 1 integration. Will be replaced by JWT authentication when security infrastructure is integrated.")
-            @RequestHeader("X-User-Id") Long userId,
+            @AuthenticationPrincipal Long userId,
             @Parameter(description = "Product ID", required = true)
             @PathVariable Long productId,
-            @RequestBody UpdateCartItemRequest request) {
-        Cart cart = cartService.updateItem(userId, productId, request.quantity());
+            @RequestBody UpdateCartItemRequest request
+    ) {
+        Cart cart = cartService.updateItem(
+                userId,
+                productId,
+                request.quantity()
+        );
+
         return ResponseEntity.ok(toResponse(cart));
     }
 
@@ -98,11 +107,10 @@ public class CartController {
                     schema = @Schema(implementation = com.example.cart.presentation.dto.common.ErrorResponse.class)))
     })
     public ResponseEntity<CartResponse> deleteItem(
-            @Parameter(name = "X-User-Id", in = ParameterIn.HEADER, required = true,
-                    description = "Temporary user identification header for Phase 1 integration. Will be replaced by JWT authentication when security infrastructure is integrated.")
-            @RequestHeader("X-User-Id") Long userId,
+            @AuthenticationPrincipal Long userId,
             @Parameter(description = "Product ID", required = true)
-            @PathVariable Long productId) {
+            @PathVariable Long productId
+    ) {
         Cart cart = cartService.deleteItem(userId, productId);
         return ResponseEntity.ok(toResponse(cart));
     }

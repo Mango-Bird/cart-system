@@ -36,7 +36,8 @@ public class CartService {
         }
 
         Cart cart = cartRepository.findByUserId(userId)
-                .orElseThrow(() -> new CartNotFoundException(userId));
+                .orElseGet(() -> cartRepository.save(
+                                new Cart(null, userId, List.of())));
         cartCache.put(userId, cart);
         return cart;
     }
