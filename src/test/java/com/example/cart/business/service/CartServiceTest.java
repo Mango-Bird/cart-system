@@ -82,13 +82,34 @@ class CartServiceTest {
     }
 
     @Test
-    void getCartByUserIdThrowsWhenCartDoesNotExist() {
+    void getCartByUserIdCreatesAndCachesEmptyCartWhenCartDoesNotExist() {
+        Cart savedCart = new Cart(
+                CART_ID,
+                USER_ID,
+                List.of()
+        );
+
         when(cartCache.get(USER_ID)).thenReturn(null);
-        when(cartRepository.findByUserId(USER_ID)).thenReturn(Optional.empty());
+        when(cartRepository.findByUserId(USER_ID))
+                .thenReturn(Optional.empty());
+        when(cartRepository.save(any(Cart.class)))
+                .thenReturn(savedCart);
 
-        assertThrows(CartNotFoundException.class, () -> cartService.getCartByUserId(USER_ID));
+        Cart result = cartService.getCartByUserId(USER_ID);
 
-        verify(cartCache, never()).put(any(), any());
+        ArgumentCaptor<Cart> cartCaptor =
+                ArgumentCaptor.forClass(Cart.class);
+
+        verify(cartRepository).save(cartCaptor.capture());
+
+        Cart newCart = cartCaptor.getValue();
+
+        assertNull(newCart.getId());
+        assertEquals(USER_ID, newCart.getUserId());
+        assertTrue(newCart.getItems().isEmpty());
+
+        assertSame(savedCart, result);
+        verify(cartCache).put(USER_ID, savedCart);
     }
 
     @Test
