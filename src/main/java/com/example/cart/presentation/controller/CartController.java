@@ -10,6 +10,7 @@ import com.example.cart.presentation.dto.cart.UpdateCartItemRequest;
 import java.util.List;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/cart")
+@SecurityRequirement(name = "bearerAuth")
 public class CartController {
     private final CartService cartService;
 
