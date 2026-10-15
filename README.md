@@ -4,10 +4,6 @@
 
 Cart System là REST API quản lý giỏ hàng trong hệ thống thương mại điện tử. Hệ thống cho phép người dùng đăng ký, đăng nhập, xem sản phẩm và quản lý số lượng sản phẩm trong giỏ riêng. Các vấn đề chính gồm xác định chủ giỏ, kiểm tra tồn kho khi thay đổi số lượng, lưu dữ liệu bền vững và xử lý chênh lệch giữa dữ liệu lưu trữ với cache.
 
-Phase 1 triển khai Authentication, truy vấn Product và quản lý Cart qua chín endpoint. Phạm vi chưa bao gồm đặt hàng, thanh toán hoặc giữ chỗ tồn kho. Hệ thống sử dụng Java 21, Spring Boot 4.1.1, Spring MVC, Spring Data JPA/Hibernate, Spring Security, JJWT, Redis và springdoc-openapi.
-
-Source hiện tại sử dụng **MySQL Connector/J và URL JDBC MySQL**. MariaDB là phương án cơ sở dữ liệu được nhắc đến trong định hướng tài liệu; khả năng tương thích với MariaDB chưa được xác minh. Các mô tả persistence dưới đây phản ánh cấu hình MySQL hiện có.
-
 ## 2. Chức năng hệ thống
 
 | Nhóm | Chức năng đã triển khai | Quy tắc và phạm vi |
