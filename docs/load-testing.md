@@ -4,9 +4,9 @@
 
 Đóng gói backend cùng MySQL/Redis, kiểm tra hoạt động API thực và cung cấp bộ phát tải Locust chạy trên Kaggle CPU. Không sửa Business, domain, API, JWT hoặc schema để phục vụ benchmark.
 
-**NOT EXECUTED — Kaggle benchmark requires an accessible backend and an actual Kaggle run.**
+**VERIFIED — Kaggle CPU Smoke: hai lượt 1 user / 30 giây, 47 requests tổng cộng, 0 failures.**
 
-Chưa có phiên Kaggle được kết nối hoặc backend HTTPS được duyệt cho Kaggle truy cập. Không tạo tunnel, không public backend, database hay Redis. Các số liệu dưới đây chỉ thuộc phép đo **local**, không phải Kaggle và không chứng minh năng lực production.
+Ngày 15/10/2026 đã chạy từ Kaggle Interactive CPU qua HTTPS backend do người dùng cung cấp. Xem [kết quả và bằng chứng](kaggle-benchmark.md#8-kết-quả-kaggle-cpu-thực-tế--15102026). Không tạo tunnel hoặc public MySQL/Redis. Bảng mục 4 là phép đo **local** riêng; không trộn với Kaggle và không dùng để khẳng định capacity production. Kaggle Low/Medium/High: NOT RUN.
 
 ## 2. Audit và môi trường thực tế
 
@@ -24,7 +24,7 @@ Kiểm tra ngày 15/10/2026 (Asia/Bangkok):
 | Tài nguyên Docker Engine | 16 logical CPUs, 8,161,751,040 byte memory; không đặt giới hạn riêng cho mỗi container |
 | Máy phát tải local | Windows 11 build 26200, Python 3.12.14, 16 logical CPUs |
 | Công cụ phát tải | Locust 2.46.7, một process; Matplotlib 3.10.8; nbformat 5.10.4 |
-| Kaggle CPU | Chưa chạy; CPU/RAM/Internet thực tế chưa xác định |
+| Kaggle CPU | Interactive, Accelerator=None, Internet on; Linux, Python 3.13.15, 4 logical CPUs, 33,658,318,848 bytes memory; Smoke đã chạy |
 
 Máy phát tải và Docker cùng host, tài nguyên bị chia sẻ. Không đo CPU/RAM/connection pool/slow query phía backend trong quá trình phát tải; chưa xác định bottleneck. MariaDB không được sử dụng trong kiểm chứng này.
 
@@ -93,22 +93,24 @@ Các lệnh Python thực tế dùng interpreter trong `load-testing/.venv`; env
 | Python tooling tests | PASS — 5 tests; sandbox tempfile ban đầu bị từ chối, chạy lại ngoài sandbox thành công |
 | Notebook JSON schema và code cells | PASS — notebook chưa có execution/output; kiểm tra không thực thi benchmark |
 | Locust local smoke / low | PASS — exit code 0; 34 / 1521 requests; 0 failures |
-| Kaggle actual benchmark | NOT RUN |
+| Kaggle actual benchmark | VERIFIED Smoke: 2 runs, 1 user/30s each, 0 failures; Low/Medium/High NOT RUN |
 
 Một lần `up --wait` khi chuyển override ngay sau restart báo backend unhealthy. Sau khi MySQL khởi động lại, backend tự phục hồi theo restart policy; chạy lại `docker compose up -d --wait --wait-timeout 120` thành công và xác nhận persistence/API. Không bỏ qua lần chờ thất bại này hoặc sửa Business/Security để che lỗi.
 
 ## 6. Kaggle CPU và networking
 
+Quy trình mới nhất: [Kaggle CPU từng bước](kaggle-benchmark.md). Notebook đã dùng cấu hình không tương tác, Secret fail-closed, HTTPS preflight không redirect, evidence theo từng run và công cụ report đối chiếu artifacts. Các số liệu local ở trên được giữ nguyên; những cải tiến tooling này **không phải** một lần chạy Kaggle.
+
 Notebook [kaggle_load_test.ipynb](../load-testing/kaggle_load_test.ipynb) nhận suite từ Kaggle Dataset, cài dependencies, lấy password qua Kaggle Secrets, kiểm tra HTTP/product data, chuẩn bị accounts rồi chạy Locust headless. Nó đọc CSV thật, tính metrics, vẽ RPS/concurrency và xuất ZIP/CSV/HTML. Không có cell output giả hoặc benchmark data dựng sẵn.
 
 Kaggle là **máy phát tải**, không chạy Spring Boot/database/Redis trong thiết kế này. `localhost` của Kaggle không trỏ tới Windows. Backend cần origin HTTPS được phép truy cập từ Kaggle; không giả định Notebook có inbound traffic. Kiểm tra setting Internet, Accelerator=None và các giới hạn phiên thực tế trước khi chạy. Không đổi compose bind address hoặc tạo tunnel tự động.
 
-Các bước còn lại: triển khai backend test tại địa chỉ đã duyệt; chuẩn bị sản phẩm; đính kèm suite Dataset; bật Internet và cấp Secret LOAD_TEST_PASSWORD; chạy smoke trước rồi tăng tải có kiểm soát; tải artifacts và cập nhật bảng so sánh bằng số liệu thực. Ghi cả cấu hình backend và generator, revision source, vị trí mạng và resource limits để có thể diễn giải kết quả.
+Quy trình cho lần chạy mới (không tự tăng tải): triển khai backend test tại địa chỉ đã duyệt; chuẩn bị sản phẩm; đính kèm suite Dataset; bật Internet và cấp Secret LOAD_TEST_PASSWORD; chạy smoke trước rồi tăng tải có kiểm soát; tải artifacts và cập nhật bảng so sánh bằng số liệu thực. Ghi cả cấu hình backend và generator, revision source, vị trí mạng và resource limits để có thể diễn giải kết quả.
 
 ## 7. Hạn chế và hướng cải thiện
 
 - Smoke/low local là kiểm chứng tooling và chức năng dưới tải nhỏ; chưa phải xác nhận SLA hoặc capacity. Chưa chạy lặp nhiều lần, chưa tách cold/warm cache, chưa đo steady-state.
-- Chưa có benchmark Kaggle, không đưa ra kết luận throughput/latency từ Kaggle hoặc bottleneck production.
+- Kaggle Smoke đã chạy hai lượt; chưa chạy Low/Medium/High. Chưa xác định bottleneck hoặc capacity production; số liệu chi tiết ở kaggle-benchmark.md.
 - JWT không có refresh endpoint; workload relogin qua API hiện có. Shared test password chỉ dùng cho tài khoản test, không phải tài khoản thật; mỗi VU vẫn có identity/cart riêng.
 - Single-process Locust; không hỗ trợ chia sẻ manifest giữa workers. Cần phân vùng tài khoản trước khi thiết kế distributed load.
 - Test accounts còn trong DB; script không có API xóa user và không tự thực hiện SQL phá dữ liệu. Seed SQL chỉ dùng trong môi trường test.

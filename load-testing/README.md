@@ -61,7 +61,7 @@ load-testing/.venv/Scripts/python load-testing/run.py --profile smoke --output l
 load-testing/.venv/Scripts/python load-testing/run.py --profile low --output load-testing/results/local-low
 ```
 
-Có thể override `--users`, `--spawn-rate`, `--duration`. Mỗi output phải là thư mục rỗng, tránh trộn kết quả. Giới hạn subprocess là 1 giờ; stop timeout của Locust là 15 giây; HTTP timeout mặc định 10 giây, đổi qua LOAD_TEST_TIMEOUT. Tăng tải tuần tự sau smoke thành công, không tự chạy tất cả profile vào backend chưa được duyệt.
+Có thể override `--users`, `--spawn-rate`, `--duration`. Mỗi output phải là thư mục rỗng, tránh trộn kết quả. Duration dùng số nguyên với hậu tố s/m/h, tối đa 55 phút; giới hạn subprocess là duration+60 giây, stop timeout 15 giây. HTTP timeout mặc định 10 giây, cấu hình qua LOAD_TEST_TIMEOUT trong (0,120] giây. Timeout/interruption được ghi INCOMPLETE trong execution.json. Tăng tải tuần tự sau smoke thành công, không tự chạy tất cả profile vào backend chưa được duyệt.
 
 ## Artifacts và cách đọc
 
@@ -71,14 +71,25 @@ Có thể override `--users`, `--spawn-rate`, `--duration`. Mỗi output phải 
 - `http-status.csv`: số request theo endpoint, HTTP status/transport_error và success/failure. HTTP 200 vẫn có thể failure nếu DTO không đúng.
 - `run-metadata.json`: users cấu hình/đỉnh quan sát, spawn rate, runtime yêu cầu, thời gian thực tế.
 - `summary.json`: metrics tổng hợp, phiên bản/cấu hình máy phát tải và nguồn đo local/Kaggle.
+- `execution.json`: trạng thái RUNNING/COMPLETED/FAILED/INCOMPLETE/INVALID ARTIFACTS; không chấp nhận run thiếu hoặc lệch counters.
 - `report.html`, `locust_failures.csv`, `locust_exceptions.csv`, `locust.log`: báo cáo và chẩn đoán.
 
 CSV percentiles là ước lượng theo histogram của Locust, không phải trung bình percentiles từng endpoint. Failure rate = failure count / request count. RPS lấy từ thống kê tổng Locust; duration metadata có thể gồm graceful stop. Thư mục results bị Git ignore; rà soát artifacts trước khi chia sẻ, nhất là target và thông tin môi trường. Không xuất request/response body hoặc Authorization header.
 
 ## Kaggle CPU
 
-Upload nguyên thư mục load-testing dưới dạng Kaggle Dataset riêng hoặc lấy từ revision đã duyệt; notebook cần các script đi kèm, không chỉ file ipynb. Notebook có biến SUITE_DIR trỏ đến thư mục này, copy script sang `/kaggle/working/cart-load-testing`, nhận password qua Kaggle Secrets `LOAD_TEST_PASSWORD` và target qua cấu hình. Accelerator chọn None/CPU, Internet phải được bật và kiểm tra thực tế.
+Chỉ upload các scripts sạch theo danh sách trong [hướng dẫn từng bước](../docs/kaggle-benchmark.md), không upload virtualenv, .env, accounts hoặc results. Notebook cần scripts đi kèm, không chỉ ipynb; SUITE_DIR phải trỏ đúng Dataset. Nó copy scripts sang `/kaggle/working/cart-load-testing`, nhận LOAD_TEST_PASSWORD qua Kaggle Secrets, không dùng input/getpass. Điền TARGET_BASE_URL, SOURCE_REVISION, CPU_CONFIRMED và APPROVED_MAX_USERS trước khi Save & Run All. Accelerator chọn None/CPU, Internet phải được bật và kiểm tra thực tế.
 
 `localhost` trong Kaggle thuộc máy Kaggle, không phải Windows hoặc Docker host của bạn. Dùng địa chỉ HTTPS backend đã được cho phép truy cập. Không public MySQL/Redis. Chạy notebook và tải artifacts về trước khi cập nhật [báo cáo](../docs/load-testing.md); notebook không tự chứng minh đã benchmark Kaggle chỉ vì có cell chạy Locust.
+
+Preflight `check_connectivity.py` kiểm tra DNS/TLS/health/products với HTTPS và không redirect. `LOAD_TEST_REQUIRE_HTTPS=1` bật kiểm tra origin trong prepare/runner; mọi request chuẩn bị hoặc workload đều không follow redirect. Manifest phải có username/user ID riêng biệt. Không cung cấp signing secret cho máy phát tải.
+
+Tổng hợp artifacts thật, gồm duration và HTTP status distribution:
+
+```powershell
+load-testing/.venv/Scripts/python load-testing/report.py --results load-testing/results --output load-testing/results/analysis
+```
+
+Report xuất comparison CSV/HTML/JSON, từ chối artifacts thiếu/lệch counters, không ghi đè summary. Cache hit/miss giữ NOT MEASURED khi chưa có measurement riêng; không suy từ latency. READY TO RUN, EXECUTED và VERIFIED được phân biệt trong [hướng dẫn Kaggle](../docs/kaggle-benchmark.md); tool không tự chứng nhận Kaggle CPU origin từ biến môi trường.
 
 Tham khảo: [Locust event hooks](https://docs.locust.io/en/stable/extending-locust.html), [Kaggle Notebooks](https://www.kaggle.com/docs/notebooks), [Kaggle Secrets](https://github.com/Kaggle/kaggle-cli/blob/main/docs/kernels.md).

@@ -9,6 +9,7 @@ import time
 
 from locust import HttpUser, between, events, task
 from locust.exception import StopUser
+from tooling import validate_timeout
 
 _accounts = deque()
 _statuses = Counter()
@@ -90,7 +91,7 @@ class CartUser(HttpUser):
             raise StopUser("Not enough prepared accounts")
         self.account = _accounts.popleft()
         self.product_id = _manifest["product_id"]
-        self.timeout = float(os.environ.get("LOAD_TEST_TIMEOUT", "10"))
+        self.timeout = validate_timeout(os.environ.get("LOAD_TEST_TIMEOUT", "10"))
         self.token_expiry = 0
         self.login()
 
@@ -98,7 +99,7 @@ class CartUser(HttpUser):
         with self.client.post("/api/auth/login", name="AUTH login", timeout=self.timeout,
                               json={"username": self.account["username"],
                                     "password": os.environ["LOAD_TEST_PASSWORD"]},
-                              catch_response=True) as response:
+                              catch_response=True, allow_redirects=False) as response:
             try:
                 if response.status_code != 200:
                     raise ValueError()
@@ -119,7 +120,7 @@ class CartUser(HttpUser):
             self.login()
         for attempt in range(2):
             with self.client.request(method, path, name=name, timeout=self.timeout,
-                                     catch_response=True, **kwargs) as response:
+                                     catch_response=True, allow_redirects=False, **kwargs) as response:
                 retry = response.status_code == 401 and attempt == 0
                 if response.status_code == 200:
                     try:

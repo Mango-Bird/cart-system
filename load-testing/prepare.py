@@ -4,19 +4,14 @@ import json
 import os
 from pathlib import Path
 import re
-from urllib.parse import urlparse
 
 import requests
+from tooling import validate_target, validate_timeout
 
 
 def target_url():
-    value = os.environ.get("TARGET_BASE_URL", "").rstrip("/")
-    url = urlparse(value)
-    if url.scheme not in ("http", "https") or not url.hostname or url.username or url.password:
-        raise ValueError("TARGET_BASE_URL must be an HTTP(S) origin without credentials")
-    if url.path not in ("", "/") or url.query or url.fragment:
-        raise ValueError("TARGET_BASE_URL must not include a path, query or fragment")
-    return value
+    return validate_target(os.environ.get("TARGET_BASE_URL", ""),
+                           os.environ.get("LOAD_TEST_REQUIRE_HTTPS") == "1")
 
 
 def checked(response, expected):
@@ -34,12 +29,10 @@ def prepare(users, output):
     run_id = os.environ["LOAD_TEST_RUN_ID"]
     if not password or not re.fullmatch(r"[A-Za-z0-9_-]{1,32}", run_id):
         raise ValueError("Set password and a run ID of 1..32 letters/digits/_/-")
-    timeout = float(os.environ.get("LOAD_TEST_TIMEOUT", "10"))
-    if timeout <= 0:
-        raise ValueError("timeout must be positive")
+    timeout = validate_timeout(os.environ.get("LOAD_TEST_TIMEOUT", "10"))
     with requests.Session() as client:
-        checked(client.get(base + "/api/health", timeout=timeout), (200,))
-        products = checked(client.get(base + "/api/products", timeout=timeout), (200,)).json()
+        checked(client.get(base + "/api/health", timeout=timeout, allow_redirects=False), (200,))
+        products = checked(client.get(base + "/api/products", timeout=timeout, allow_redirects=False), (200,)).json()
         requested = os.environ.get("LOAD_TEST_PRODUCT_ID", "")
         eligible = [p for p in products if isinstance(p.get("stock"), int) and p["stock"] >= 2
                     and (not requested or p["id"] == int(requested))]
@@ -50,13 +43,13 @@ def prepare(users, output):
         for index in range(users):
             username = f"lt_{run_id}_{index:05d}"
             body = {"username": username, "password": password}
-            checked(client.post(base + "/api/auth/register", json=body, timeout=timeout), (201, 409))
-            token = checked(client.post(base + "/api/auth/login", json=body, timeout=timeout), (200,)).json()["token"]
+            checked(client.post(base + "/api/auth/register", json=body, timeout=timeout, allow_redirects=False), (201, 409))
+            token = checked(client.post(base + "/api/auth/login", json=body, timeout=timeout, allow_redirects=False), (200,)).json()["token"]
             headers = {"Authorization": "Bearer " + token}
-            cart = checked(client.get(base + "/api/cart", headers=headers, timeout=timeout), (200,)).json()
+            cart = checked(client.get(base + "/api/cart", headers=headers, timeout=timeout, allow_redirects=False), (200,)).json()
             if any(item["productId"] == product_id for item in cart["items"]):
                 checked(client.delete(base + f"/api/cart/items/{product_id}", headers=headers,
-                                      timeout=timeout), (200,))
+                                      timeout=timeout, allow_redirects=False), (200,))
             accounts.append({"username": username, "userId": cart["userId"]})
     if len({a["userId"] for a in accounts}) != users:
         raise RuntimeError("Accounts must own distinct carts")
