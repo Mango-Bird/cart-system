@@ -295,4 +295,4 @@ OpenAPI khai báo scheme HTTP Bearer với bearerFormat JWT và security require
 4. Bổ sung quan sát hệ thống, readiness và đo hiệu năng trước khi điều chỉnh cache/query.
 5. Thiết kế vòng đời token, phân quyền và nghiệp vụ đặt hàng/giữ chỗ tồn kho khi phạm vi sản phẩm yêu cầu.
 
-Các mục đề xuất chưa được triển khai trong Phase 1. Tài liệu bổ trợ được giữ tại [mục lục docs](docs/README.md), [kiến trúc chi tiết](docs/architecture.md), [API](docs/api.md) và [kiểm thử](docs/testing.md). Cấu hình đóng gói nằm trong [Docker](docs/docker.md); bộ phát tải và trạng thái kiểm chứng thực tế nằm trong [Load testing và Kaggle CPU](docs/load-testing.md). Có notebook không đồng nghĩa đã chạy benchmark Kaggle.
+Các mục đề xuất chưa được triển khai trong Phase 1. Tài liệu bổ trợ được giữ tại [mục lục docs](docs/README.md), [kiến trúc chi tiết](docs/architecture.md), [API](docs/api.md)\
