@@ -278,14 +278,10 @@ OpenAPI khai báo scheme HTTP Bearer với bearerFormat JWT và security require
 
 ### Hiện trạng
 
-- Chưa có checkout, order, payment, coupon, tổng tiền hoặc giá snapshot. Thêm item không giữ chỗ và không trừ tồn kho.
-- Chưa có API quản trị sản phẩm, phân trang, bộ lọc, role, refresh token hoặc thu hồi token.
-- Validation request chưa bao phủ trường null, chuỗi rỗng và giới hạn độ dài. Quantity null có thể lỗi unboxing; handler tổng quát có thể trả 500 cho một số lỗi input.
-- GET cart tạo giỏ rỗng nếu thiếu, trong khi annotation OpenAPI vẫn mô tả thêm lỗi 404 cho endpoint này. Tài liệu này mô tả theo service thực tế.
-- Workflow ghi nhiều bước chưa có transaction bao trùm hoặc kiểm soát lost update. Kiểm tra username trước save không tự ngăn cuộc đua đăng ký đồng thời; lỗi unique constraint chưa được chuyển riêng thành lỗi nghiệp vụ.
-- Cache invalidation là best-effort. Eviction thất bại có thể giữ dữ liệu cũ đến hết TTL; request đọc đồng thời có thể ghi lại snapshot cũ sau eviction.
-- JPA hiện dùng scalar ID và `ddl-auto=update`; chưa có migration có phiên bản hoặc xác nhận schema thực tế bằng kiểm tra database.
-- Health phản hồi cố định; chưa phản ánh readiness của database/Redis. Chưa có benchmark Kaggle hoặc căn cứ xác nhận năng lực chịu tải production.
+- Thao tác cập nhật giỏ chưa có transaction bao trùm hoặc kiểm soát đồng thời. Khi khách mở hai tab và cùng thêm sản phẩm, số lượng có thể bị mất cập nhật.
+- API thêm sản phẩm chưa hỗ trợ idempotency key. Nếu request được gửi lại do mạng chậm hoặc khách bấm nhiều lần, số lượng có thể bị cộng trùng.
+- Cache invalidation đang là best-effort, chưa có cơ chế retry khi eviction thất bại. Giỏ hàng có thể hiển thị dữ liệu cũ đến hết TTL; request đọc đồng thời cũng có thể ghi lại snapshot cũ sau eviction.
+- Authentication hiện dùng JWT access token, chưa có refresh token. Khi token hết hạn, khách phải đăng nhập lại để tiếp tục thao tác với giỏ hàng.
 
 ### Đề xuất cho giai đoạn tiếp theo
 
