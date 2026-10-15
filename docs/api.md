@@ -145,4 +145,4 @@ Lỗi JWT/access ở SecurityFilterChain dùng `sendError`: Cart thiếu JWT ho�
 
 DTO chưa có Bean Validation annotations; Controller chưa dùng `@Valid`. Quy tắc quantity/stock nêu trên áp dụng khi input đã chuyển được thành kiểu dữ liệu Service cần. Quantity null có thể gây lỗi unboxing trước khi vào Service; body JSON không hợp lệ, path ID không parse được hoặc input null có thể bị catch-all trả 500. Chưa có test khẳng định các trường hợp đó trả 400.
 
-Swagger ở `/swagger-ui/index.html`, JSON ở `/v3/api-docs`. Scheme `bearerAuth` có type HTTP, scheme bearer, format JWT; chỉ Cart có security requirement. Nhập JWT thuần vào Authorize. Một số status mô tả trong annotations chưa đồng nhất với validation/runtime hiện tại; catch-all 500 chưa được document riêng trên mọi operation.
+Swagger ở `/swagger-ui/index.html`, JSON ở `/v3/api-docs`. Scheme `bearerAuth` có type HTTP, scheme bearer, format JWT; chỉ Cart có security requirement. Nhập JWT thuần vào Authorize.
