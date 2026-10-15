@@ -166,4 +166,4 @@ Handler map Business exception sang 400, 401, 404, 409; catch-all trả 500 cùn
 | Tách dữ liệu HTTP và domain | Maintainability / Security | DTO riêng; không trả password hoặc ID nội bộ item | Cần chuyển đổi trong Controller |
 | Chuẩn bị schema nhanh cho Phase 1 | Maintainability | Hibernate `ddl-auto=update` | Chưa có lịch sử migrations và quy trình rollback schema |
 
-Các quyết định trên được triển khai ở source; mức hiệu năng và tính đúng đắn dưới tải đồng thời chưa được xác nhận bằng benchmark/integration tests.
+Các quyết định trên được triển khai ở source. Kiểm chứng Docker/API/cache và smoke/low local mới được ghi tại [báo cáo load testing](load-testing.md); chưa có benchmark Kaggle hoặc xác nhận tính đúng đắn đầy đủ dưới tải đồng thời.

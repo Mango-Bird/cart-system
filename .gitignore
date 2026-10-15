@@ -31,3 +31,13 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Runtime credentials and generated load-test artifacts
+.env
+.env.*
+!.env.example
+load-testing/config.env
+load-testing/results/
+load-testing/.venv/
+load-testing/__pycache__/
+load-testing/.ipynb_checkpoints/

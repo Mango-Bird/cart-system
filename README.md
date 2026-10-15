@@ -247,7 +247,7 @@ GET cart có thể tạo dữ liệu khi user chưa có giỏ. Redis không quy�
 | Xác định danh tính khi gọi Cart API | Security, Extensibility | JWT Bearer, kiểm tra chữ ký/issuer/expiry, principal chứa user ID, session stateless | Phải quản lý khóa và thời hạn; chưa có thu hồi token, refresh token hoặc kiểm tra user còn tồn tại tại mỗi request. |
 | Business bị gắn với cách truy vấn database | Maintainability, Testability | Repository Pattern; adapter chuyển Entity ↔ Domain | Thêm interface và mapping; đổi persistence vẫn phải kiểm tra tương thích hành vi của contract. |
 | Service phụ thuộc trực tiếp JWT, BCrypt hoặc Redis | Maintainability, Extensibility | Dependency Inversion qua TokenService, PasswordHasher, CartCache và constructor injection | Cần cấu hình nối bean và duy trì contract giữa các implementation. |
-| Truy vấn lặp lại cùng một giỏ | Performance | Redis Cache-Aside, TTL 5 phút, evict sau ghi | Tăng chi phí mạng/JSON và vận hành; cache có thể cũ khi eviction lỗi hoặc request chạy đồng thời; chưa có benchmark. |
+| Truy vấn lặp lại cùng một giỏ | Performance | Redis Cache-Aside, TTL 5 phút, evict sau ghi | Tăng chi phí mạng/JSON và vận hành; cache có thể cũ khi eviction lỗi hoặc request chạy đồng thời; chưa có benchmark Kaggle hoặc phép đo so sánh bật/tắt cache. |
 | Trộn HTTP, nghiệp vụ và persistence | Maintainability, Testability | Layered Architecture; Controller dùng DTO/service, Business Java thuần, Data Access ở adapters | Tăng số thành phần và công việc chuyển đổi dữ liệu. |
 | Quy tắc nghiệp vụ và lỗi HTTP cần ranh giới rõ | Maintainability, Security | Service kiểm tra quantity/stock; Business exception được handler chuyển sang HTTP; catch-all dùng message chung | Validation input chưa đầy đủ; lỗi Security và MVC chưa được chuẩn hóa hoàn toàn cùng ErrorResponse. |
 
@@ -258,7 +258,7 @@ GET cart có thể tạo dữ liệu khi user chưa có giỏ. Redis không quy�
 | Maintainability — Khả năng bảo trì | Business thuần Java; DTO và Entity riêng; configuration nối dependency bên ngoài service | Thay đổi contract cần phối hợp mapping, Controller và adapter. |
 | Testability — Khả năng kiểm thử | Constructor injection cho phép mock repository/cache/security ports; MVC và security có phạm vi kiểm thử riêng | Mock không chứng minh database mapping, cache thật hay wiring đầy đủ. |
 | Security — Bảo mật | BCrypt, JWT có chữ ký/thời hạn, giỏ lấy owner từ principal, response đăng ký không có password | Chưa có role, thu hồi token, rate limiting hoặc validation input đầy đủ; không suy ra an toàn triển khai chỉ từ các cơ chế này. |
-| Performance — Hiệu năng | Cache hit bỏ qua truy vấn Cart vào database; TTL giới hạn tuổi của giá trị cache | Chưa đo độ trễ, throughput hoặc lợi ích dưới tải; serialize và Redis cũng có chi phí. |
+| Performance — Hiệu năng | Cache hit bỏ qua truy vấn Cart vào database; TTL giới hạn tuổi của giá trị cache | Đã có phép đo smoke/low local riêng; chưa xác định năng lực production hoặc lợi ích riêng của cache. Serialize và Redis cũng có chi phí. |
 | Data Consistency — Nhất quán dữ liệu | Database là nguồn chính; unique mapping; evict sau ghi và cập nhật items trong object trả về | Chưa có transaction bao trùm workflow, optimistic locking hoặc cơ chế đồng bộ mạnh giữa database/cache. |
 | Extensibility — Khả năng mở rộng | Các implementation có thể thay thế qua Business interfaces; boundary HTTP tách khỏi domain | Đơn hàng, giữ chỗ stock hoặc thay đổi contract cần thiết kế mới; abstraction hiện tại không tự giải quyết các nghiệp vụ đó. |
 
@@ -289,7 +289,7 @@ OpenAPI khai báo scheme HTTP Bearer với bearerFormat JWT và security require
 - Workflow ghi nhiều bước chưa có transaction bao trùm hoặc kiểm soát lost update. Kiểm tra username trước save không tự ngăn cuộc đua đăng ký đồng thời; lỗi unique constraint chưa được chuyển riêng thành lỗi nghiệp vụ.
 - Cache invalidation là best-effort. Eviction thất bại có thể giữ dữ liệu cũ đến hết TTL; request đọc đồng thời có thể ghi lại snapshot cũ sau eviction.
 - JPA hiện dùng scalar ID và `ddl-auto=update`; chưa có migration có phiên bản hoặc xác nhận schema thực tế bằng kiểm tra database. Khả năng dùng MariaDB chưa được xác minh.
-- Health phản hồi cố định; chưa phản ánh readiness của database/Redis. Chưa có benchmark hoặc căn cứ xác nhận mức hiệu năng dưới tải.
+- Health phản hồi cố định; chưa phản ánh readiness của database/Redis. Chưa có benchmark Kaggle hoặc căn cứ xác nhận năng lực chịu tải production.
 
 ### Đề xuất cho giai đoạn tiếp theo
 
@@ -299,4 +299,4 @@ OpenAPI khai báo scheme HTTP Bearer với bearerFormat JWT và security require
 4. Bổ sung quan sát hệ thống, readiness và đo hiệu năng trước khi điều chỉnh cache/query.
 5. Thiết kế vòng đời token, phân quyền và nghiệp vụ đặt hàng/giữ chỗ tồn kho khi phạm vi sản phẩm yêu cầu.
 
-Các mục đề xuất chưa được triển khai trong Phase 1. Tài liệu bổ trợ được giữ tại [mục lục docs](docs/README.md), [kiến trúc chi tiết](docs/architecture.md), [API](docs/api.md) và [kiểm thử](docs/testing.md).
+Các mục đề xuất chưa được triển khai trong Phase 1. Tài liệu bổ trợ được giữ tại [mục lục docs](docs/README.md), [kiến trúc chi tiết](docs/architecture.md), [API](docs/api.md) và [kiểm thử](docs/testing.md). Cấu hình đóng gói nằm trong [Docker](docs/docker.md); bộ phát tải và trạng thái kiểm chứng thực tế nằm trong [Load testing và Kaggle CPU](docs/load-testing.md). Có notebook không đồng nghĩa đã chạy benchmark Kaggle.
