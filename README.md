@@ -284,15 +284,14 @@ OpenAPI khai báo scheme HTTP Bearer với bearerFormat JWT và security require
 - GET cart tạo giỏ rỗng nếu thiếu, trong khi annotation OpenAPI vẫn mô tả thêm lỗi 404 cho endpoint này. Tài liệu này mô tả theo service thực tế.
 - Workflow ghi nhiều bước chưa có transaction bao trùm hoặc kiểm soát lost update. Kiểm tra username trước save không tự ngăn cuộc đua đăng ký đồng thời; lỗi unique constraint chưa được chuyển riêng thành lỗi nghiệp vụ.
 - Cache invalidation là best-effort. Eviction thất bại có thể giữ dữ liệu cũ đến hết TTL; request đọc đồng thời có thể ghi lại snapshot cũ sau eviction.
-- JPA hiện dùng scalar ID và `ddl-auto=update`; chưa có migration có phiên bản hoặc xác nhận schema thực tế bằng kiểm tra database. Khả năng dùng MariaDB chưa được xác minh.
+- JPA hiện dùng scalar ID và `ddl-auto=update`; chưa có migration có phiên bản hoặc xác nhận schema thực tế bằng kiểm tra database.
 - Health phản hồi cố định; chưa phản ánh readiness của database/Redis. Chưa có benchmark Kaggle hoặc căn cứ xác nhận năng lực chịu tải production.
 
 ### Đề xuất cho giai đoạn tiếp theo
 
-1. Hoàn thiện validation request và thống nhất cấu trúc lỗi MVC/Security; đối chiếu lại OpenAPI với hành vi service.
-2. Xác định transaction boundary, xử lý ghi đồng thời và chính sách cache consistency; kiểm chứng bằng integration tests với database và Redis thật.
-3. Quản lý schema bằng migration và xác minh constraints; đánh giá MariaDB riêng nếu chọn làm nền tảng triển khai.
-4. Bổ sung quan sát hệ thống, readiness và đo hiệu năng trước khi điều chỉnh cache/query.
-5. Thiết kế vòng đời token, phân quyền và nghiệp vụ đặt hàng/giữ chỗ tồn kho khi phạm vi sản phẩm yêu cầu.
+1. Hai tab cùng thêm hàng: có thể mất cập nhật số lượng → bổ sung transaction và kiểm soát đồng thời.
+2. Mạng chậm, khách bấm thêm hai lần: sản phẩm bị cộng trùng → hỗ trợ idempotency key.
+3. Redis lỗi sau khi sửa giỏ: khách vẫn thấy số lượng cũ → evict sau commit, retry khi thất bại.
+4. JWT hết hạn khi đang mua: khách phải đăng nhập lại → bổ sung refresh token.
 
 Các mục đề xuất chưa được triển khai trong Phase 1. Tài liệu bổ trợ được giữ tại [mục lục docs](docs/README.md), [kiến trúc chi tiết](docs/architecture.md), [API](docs/api.md)\
