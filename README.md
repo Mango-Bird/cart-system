@@ -247,18 +247,7 @@ GET cart có thể tạo dữ liệu khi user chưa có giỏ. Redis không quy�
 | Trộn HTTP, nghiệp vụ và persistence | Maintainability, Testability | Layered Architecture; Controller dùng DTO/service, Business Java thuần, Data Access ở adapters | Tăng số thành phần và công việc chuyển đổi dữ liệu. |
 | Quy tắc nghiệp vụ và lỗi HTTP cần ranh giới rõ | Maintainability, Security | Service kiểm tra quantity/stock; Business exception được handler chuyển sang HTTP; catch-all dùng message chung | Validation input chưa đầy đủ; lỗi Security và MVC chưa được chuẩn hóa hoàn toàn cùng ErrorResponse. |
 
-## 8. Thuộc tính chất lượng
-
-| Thuộc tính | Cơ chế trong source | Giới hạn đánh giá |
-|---|---|---|
-| Maintainability — Khả năng bảo trì | Business thuần Java; DTO và Entity riêng; configuration nối dependency bên ngoài service | Thay đổi contract cần phối hợp mapping, Controller và adapter. |
-| Testability — Khả năng kiểm thử | Constructor injection cho phép mock repository/cache/security ports; MVC và security có phạm vi kiểm thử riêng | Mock không chứng minh database mapping, cache thật hay wiring đầy đủ. |
-| Security — Bảo mật | BCrypt, JWT có chữ ký/thời hạn, giỏ lấy owner từ principal, response đăng ký không có password | Chưa có role, thu hồi token, rate limiting hoặc validation input đầy đủ; không suy ra an toàn triển khai chỉ từ các cơ chế này. |
-| Performance — Hiệu năng | Cache hit bỏ qua truy vấn Cart vào database; TTL giới hạn tuổi của giá trị cache | Đã có phép đo smoke/low local riêng; chưa xác định năng lực production hoặc lợi ích riêng của cache. Serialize và Redis cũng có chi phí. |
-| Data Consistency — Nhất quán dữ liệu | Database là nguồn chính; unique mapping; evict sau ghi và cập nhật items trong object trả về | Chưa có transaction bao trùm workflow, optimistic locking hoặc cơ chế đồng bộ mạnh giữa database/cache. |
-| Extensibility — Khả năng mở rộng | Các implementation có thể thay thế qua Business interfaces; boundary HTTP tách khỏi domain | Đơn hàng, giữ chỗ stock hoặc thay đổi contract cần thiết kế mới; abstraction hiện tại không tự giải quyết các nghiệp vụ đó. |
-
-## 9. Tổng quan API
+## 8. Tổng quan API
 
 | HTTP Method | Endpoint | Chức năng | Yêu cầu xác thực |
 |---|---|---|---|
@@ -274,7 +263,7 @@ GET cart có thể tạo dữ liệu khi user chưa có giỏ. Redis không quy�
 
 OpenAPI khai báo scheme HTTP Bearer với bearerFormat JWT và security requirement cho bốn Cart operations; Swagger UI có chức năng Authorize. Năm operations còn lại không yêu cầu Bearer. Chi tiết DTO và HTTP response được giữ trong [tài liệu API](docs/api.md).
 
-## 10. Giới hạn và hướng phát triển
+## 9. Giới hạn và hướng phát triển
 
 ### Hiện trạng
 
