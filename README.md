@@ -31,7 +31,7 @@ flowchart TD
     B --> R[Repository abstractions]
     R -->|Gọi implementation tại runtime| A[JPA Repository Adapters]
     A --> J[Spring Data JPA / Hibernate]
-    J --> D[(MySQL hiện tại / MariaDB chưa xác minh)]
+    J --> D[MySQL]
     A -.->|Implement interface thuộc Business| R
     B --> K[CartCache abstraction]
     K -->|Gọi implementation tại runtime| RC[RedisCartCache]
