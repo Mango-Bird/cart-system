@@ -1,0 +1,83 @@
+"""Run one bounded profile and generate an explicitly labelled result summary."""
+import argparse
+import csv
+from datetime import datetime, timezone
+import importlib.metadata
+import json
+import os
+from pathlib import Path
+import platform
+import subprocess
+import sys
+
+PROFILES = {"smoke": (1, 1, "30s"), "low": (10, 2, "2m"),
+            "medium": (50, 5, "3m"), "high": (100, 10, "5m")}
+ROOT = Path(__file__).resolve().parent
+
+
+def summarize(directory, returncode):
+    with (directory / "final-stats.csv").open(encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+    aggregate = next(row for row in rows if row["Name"] == "Aggregated")
+    metadata = json.loads((directory / "run-metadata.json").read_text(encoding="utf-8"))
+    requests = int(aggregate["Request Count"])
+    failures = int(aggregate["Failure Count"])
+    summary = {**metadata, "total_requests": requests, "failures": failures,
+               "failure_rate": failures / requests if requests else None,
+               "rps": float(aggregate["Requests/s"]),
+               "average_latency_ms": float(aggregate["Average Response Time"]),
+               "median_latency_ms": float(aggregate["Median Response Time"]),
+               "p95_latency_ms": float(aggregate["95%"]),
+               "p99_latency_ms": float(aggregate["99%"]),
+               "locust_exit_code": returncode,
+               "measurement_origin": os.environ.get("LOAD_TEST_ORIGIN", "local-not-kaggle"),
+               "generator": {"python": platform.python_version(), "os": platform.platform(),
+                             "logical_cpus": os.cpu_count(),
+                             "locust": importlib.metadata.version("locust")},
+               "recorded_at_utc": datetime.now(timezone.utc).isoformat()}
+    (directory / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    return summary
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--profile", choices=PROFILES, default="smoke")
+    parser.add_argument("--users", type=int)
+    parser.add_argument("--spawn-rate", type=float)
+    parser.add_argument("--duration")
+    parser.add_argument("--output", required=True)
+    args = parser.parse_args()
+    from prepare import target_url
+    target = target_url()
+    users, spawn_rate, duration = PROFILES[args.profile]
+    users = args.users if args.users is not None else users
+    spawn_rate = args.spawn_rate if args.spawn_rate is not None else spawn_rate
+    duration = args.duration or duration
+    if users < 1 or spawn_rate <= 0:
+        parser.error("users and spawn rate must be positive")
+    manifest = json.loads(Path(os.environ["LOAD_TEST_DATA"]).read_text(encoding="utf-8"))
+    if manifest["target"] != target or len(manifest["accounts"]) < users:
+        parser.error("Prepare enough isolated accounts for this target first")
+    directory = Path(args.output).resolve()
+    directory.mkdir(parents=True, exist_ok=True)
+    if any(directory.iterdir()):
+        parser.error("Output directory must be empty to prevent mixing runs")
+    env = dict(os.environ, LOAD_TEST_OUTPUT=str(directory))
+    command = [sys.executable, "-m", "locust", "-f", str(ROOT / "locustfile.py"),
+               "--headless", "--host", target, "--users", str(users),
+               "--spawn-rate", str(spawn_rate), "--run-time", duration,
+               "--stop-timeout", "15", "--only-summary", "--exit-code-on-error", "1",
+               "--csv", str(directory / "locust"), "--csv-full-history",
+               "--html", str(directory / "report.html")]
+    with (directory / "locust.log").open("w", encoding="utf-8") as log:
+        result = subprocess.run(command, env=env, stdout=log, stderr=subprocess.STDOUT,
+                                timeout=3600, check=False)
+    if not (directory / "final-stats.csv").exists() or not (directory / "run-metadata.json").exists():
+        raise RuntimeError("No complete metrics; inspect locust.log (not a successful benchmark)")
+    summary = summarize(directory, result.returncode)
+    print(json.dumps(summary, indent=2))
+    return result.returncode
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
