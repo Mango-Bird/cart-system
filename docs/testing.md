@@ -108,4 +108,4 @@ Chưa có automated test hoặc kết quả manual xác nhận các quan sát n�
 
 ## Giới hạn và hướng kiểm thử tiếp
 
-Cần kiểm thử database thật/MariaDB compatibility, JPA mapping và constraints, adapter CRUD/hydration, BCrypt, Redis JSON/TTL/failure, đăng ký và write đồng thời, malformed/null request, standardized Security error body và application wiring không mock Service. Chưa có benchmark hoặc load test; chưa có căn cứ định lượng lợi ích hiệu năng Redis.
+Cần kiểm thử chuyên sâu MariaDB compatibility, JPA constraints, adapter CRUD/hydration, BCrypt, Redis failure, đăng ký và write đồng thời, malformed/null request và standardized Security error body. Kết quả mới với MySQL/Redis Docker, API/cache smoke và Locust local ngày 15/10/2026 nằm trong [báo cáo load testing](load-testing.md); phần kết quả ngày 12/10 ở trên được giữ làm lịch sử. Chưa có benchmark Kaggle hoặc phép đo so sánh để định lượng lợi ích riêng của Redis.
