@@ -1,282 +1,274 @@
-# Cart System — Kiến trúc và chức năng Phase 1
+# Cart System — Phase 1
 
-## 1. Giới thiệu dự án
+Cart System là backend REST API cho một giỏ hàng thương mại điện tử đơn giản. Người dùng có thể đăng ký, đăng nhập, xem sản phẩm và quản lý giỏ hàng của chính mình.
 
-Cart System là REST API quản lý giỏ hàng trong hệ thống thương mại điện tử. Hệ thống cho phép người dùng đăng ký, đăng nhập, xem sản phẩm và quản lý số lượng sản phẩm trong giỏ riêng. Các vấn đề chính gồm xác định chủ giỏ, kiểm tra tồn kho khi thay đổi số lượng, lưu dữ liệu bền vững và xử lý chênh lệch giữa dữ liệu lưu trữ với cache.
+Mục tiêu của Phase 1 là hoàn thiện luồng nghiệp vụ cơ bản và tổ chức mã nguồn theo các lớp rõ ràng. Hệ thống chưa xử lý thanh toán, đặt hàng hay quản trị sản phẩm.
 
-## 2. Chức năng hệ thống
+## 1. Nghiệp vụ chính
 
-| Nhóm | Chức năng đã triển khai | Quy tắc và phạm vi |
-|---|---|---|
-| Authentication | Đăng ký tài khoản | Kiểm tra username đã tồn tại; hash password trước khi lưu; không trả password trong response. |
-| Authentication | Đăng nhập | Kiểm tra username và password; trả token khi xác thực thành công. |
-| Authentication | Xác thực JWT | Kiểm tra chữ ký, issuer và thời hạn; lấy user ID từ subject để xác thực Cart API. |
-| Product | Xem danh sách sản phẩm | Trả danh sách qua ProductResponse; chưa có phân trang hoặc bộ lọc. |
-| Product | Xem chi tiết sản phẩm | Tìm theo ID; báo lỗi khi sản phẩm không tồn tại. |
-| Cart | Xem giỏ hàng | Cache-Aside; nếu chưa có giỏ thì tạo và lưu giỏ rỗng. |
-| Cart | Thêm sản phẩm | Tạo giỏ nếu cần; cộng số lượng nếu sản phẩm đã có trong giỏ. |
-| Cart | Cập nhật số lượng | Thay số lượng của item hiện có; không tạo item mới. |
-| Cart | Xóa sản phẩm khỏi giỏ | Xóa CartItem; giữ nguyên Cart và Product. |
-| Cart | Kiểm tra tồn kho | Số lượng phải dương và không vượt stock khi thêm hoặc cập nhật; không giảm hay giữ chỗ stock. |
-| Cart | Xác định giỏ của người dùng | Dùng user ID từ JWT principal; tìm cart theo user và item theo cặp cart ID/product ID. |
-| Health | Phản hồi trạng thái API | Trả trạng thái cố định UP; không kiểm tra kết nối database hoặc Redis. |
+Hệ thống có bốn nhóm chức năng:
 
-## 3. Kiến trúc tổng thể
+- **Tài khoản:** đăng ký, đăng nhập; password được hash bằng BCrypt trước khi lưu.
+- **Sản phẩm:** xem danh sách và xem chi tiết sản phẩm.
+- **Giỏ hàng:** xem giỏ, thêm sản phẩm, cập nhật số lượng và xóa sản phẩm.
+- **Health check:** kiểm tra backend đang phản hồi.
 
-```mermaid
-flowchart TD
-    C[Client] --> S[Spring Security / JWT Filter]
-    S --> P[Presentation: Controller / DTO / Exception Handler]
-    P --> B[Business: Domain / Services]
-    B --> R[Repository abstractions]
-    R -->|Gọi implementation tại runtime| A[JPA Repository Adapters]
-    A --> J[Spring Data JPA / Hibernate]
-    J --> D[MySQL]
-    A -.->|Implement interface thuộc Business| R
-    B --> K[CartCache abstraction]
-    K -->|Gọi implementation tại runtime| RC[RedisCartCache]
-    RC --> RD[(Redis)]
-    RC -.->|Implement| K
-    B --> T[TokenService / PasswordHasher abstractions]
-    T -->|Gọi implementation tại runtime| I[JwtTokenService / BCryptPasswordHasher]
-    I -.->|Implement| T
-    S --> I
+Các quy tắc chính của giỏ hàng:
+
+- Mỗi người dùng có tối đa một giỏ hàng.
+- Nếu người dùng chưa có giỏ, hệ thống tạo giỏ rỗng khi truy cập giỏ lần đầu.
+- Một sản phẩm chỉ xuất hiện một lần trong cùng giỏ. Thêm lại sản phẩm sẽ cộng dồn số lượng.
+- Số lượng phải lớn hơn `0` và không được vượt quá tồn kho hiện tại.
+- Thao tác cập nhật thay thế số lượng cũ; thao tác xóa chỉ xóa item, không xóa sản phẩm hoặc giỏ hàng.
+- Danh tính người dùng được lấy từ JWT đã xác thực, không nhận `userId` từ request.
+
+## 2. Kiến trúc
+
+```text
+Client
+  │
+  ▼
+Spring Security / JWT Filter
+  │
+  ▼
+Presentation (Controller, DTO, Exception Handler)
+  │
+  ▼
+Business (Domain Model, Service, Repository Interface)
+  │
+  ▼
+Infrastructure (JPA Adapter, JWT, BCrypt, Redis Cache)
+  │
+  ├── MySQL
+  └── Redis
 ```
 
-Sơ đồ thể hiện luồng gọi tại runtime và các quan hệ implement. **Hướng phụ thuộc source** là Presentation → Business; Business → các interface do Business sở hữu; Infrastructure → các interface và domain của Business. Business không import Infrastructure, Spring, JPA, Hibernate, Redis, JWT hoặc HTTP.
+Mã nguồn được chia thành ba phần chính:
 
-Kiến trúc phân lớp tách hợp đồng HTTP, quy tắc nghiệp vụ và chi tiết lưu trữ. Dependency Inversion đặt Repository, TokenService, PasswordHasher và CartCache trong Business, cho phép service sử dụng abstraction thay vì phụ thuộc công nghệ cụ thể. `InfrastructureConfiguration` nối các implementation với service bằng constructor injection và khai báo Spring bean bên ngoài Business.
+```text
+src/main/java/com/example/cart
+├── presentation/     REST Controller, DTO, xử lý lỗi HTTP
+├── business/         model, service, repository interface
+└── infrastructure/   JPA, MySQL, Redis, JWT, BCrypt, Spring Security
+```
 
-JPA adapters thực hiện vai trò Data Access. Security/JWT là hạ tầng xuyên suốt xử lý request và xác thực, không phải một tầng nghiệp vụ mới. Redis là cache bổ trợ; database là nguồn dữ liệu chính.
+Business layer là Java thuần, không import Spring MVC, JPA, Hibernate hay Redis. Các service chỉ làm việc với interface như `UserRepository`, `CartRepository`, `CartCache`, `TokenService` và `PasswordHasher`. Infrastructure triển khai các interface này và được nối với Business bằng constructor injection.
 
-## 4. Thiết kế các tầng
+Luồng đọc giỏ hàng dùng cache-aside:
 
-### Presentation Layer
+```text
+GET cart → Redis hit → trả kết quả
+         → Redis miss → đọc MySQL → ghi Redis (TTL 5 phút) → trả kết quả
+```
 
-Các thành phần nằm trong `presentation`:
+Khi thêm, sửa hoặc xóa item, dữ liệu được ghi vào MySQL trước rồi cache của người dùng được xóa. MySQL vẫn là nguồn dữ liệu chính; Redis chỉ là cache.
 
-- **Controller:** AuthController, ProductController, CartController và HealthController tiếp nhận HTTP request, gọi service và tạo response. Controller không truy cập JPA repository.
-- **DTO:** tách cấu trúc request/response khỏi domain. RegisterResponse không chứa password; CartItemResponse chỉ trình bày productId và quantity. Controller thực hiện chuyển đổi domain sang DTO.
-- **Validation:** Spring MVC chuyển đổi JSON và tham số sang kiểu Java. DTO chưa có Bean Validation constraints và Controller chưa dùng `@Valid`; kiểm tra quantity và stock nằm ở Business. Vì vậy chưa thể khẳng định mọi input thiếu hoặc sai định dạng đều trả HTTP 400.
-- **Exception Handling:** GlobalExceptionHandler chuyển Business exception sang ErrorResponse gồm status, message và timestamp. Lỗi ngoài các nhóm được khai báo trả HTTP 500 với thông báo chung, không trả stack trace hoặc tên class exception.
+## 3. Công nghệ sử dụng
 
-| Nhóm Business exception | HTTP status |
-|---|---|
-| ProductNotFoundException, CartNotFoundException, CartItemNotFoundException | 404 |
-| UserAlreadyExistsException | 409 |
-| AuthenticationException | 401 |
-| InvalidCartItemException, InsufficientStockException | 400 |
-| Exception chưa được xử lý riêng | 500 |
+- Java 21, Spring Boot 4.1.1
+- Spring MVC, Spring Security
+- Spring Data JPA, Hibernate, MySQL
+- Spring Data Redis
+- JWT HS256 (JJWT), BCrypt
+- OpenAPI/Swagger UI
+- JUnit 6, Mockito, MockMvc
+- Docker, Docker Compose
+- Locust/Kaggle CPU cho kiểm thử tải
 
-Lỗi xác thực hoặc phân quyền tại SecurityFilterChain sử dụng `sendError(401/403)`; chưa có bảo đảm chúng dùng cùng ErrorResponse của ControllerAdvice.
+## 4. API
 
-### Business Layer
+Base URL mặc định: `http://localhost:8081`.
 
-Các thành phần nằm trong `business` và sử dụng Java thuần:
+| Method | Endpoint | Chức năng | Xác thực |
+|---|---|---|---|
+| POST | `/api/auth/register` | Đăng ký tài khoản | Public |
+| POST | `/api/auth/login` | Đăng nhập, nhận JWT | Public |
+| GET | `/api/products` | Lấy danh sách sản phẩm | Public |
+| GET | `/api/products/{id}` | Lấy chi tiết sản phẩm | Public |
+| GET | `/api/cart` | Lấy giỏ của người dùng hiện tại | Bearer JWT |
+| POST | `/api/cart/items` | Thêm sản phẩm hoặc cộng số lượng | Bearer JWT |
+| PUT | `/api/cart/items/{productId}` | Thay đổi số lượng | Bearer JWT |
+| DELETE | `/api/cart/items/{productId}` | Xóa sản phẩm khỏi giỏ | Bearer JWT |
+| GET | `/api/health` | Kiểm tra trạng thái backend | Public |
 
-- **Domain Model:** User, Product, Cart và CartItem biểu diễn dữ liệu nghiệp vụ, không có JPA annotation. Các model có constructor, getter và setter; quy tắc thao tác giỏ được kiểm tra tại service.
-- **AuthService:** đăng ký, kiểm tra password và yêu cầu tạo token qua PasswordHasher/TokenService.
-- **ProductService:** đọc danh sách, chi tiết sản phẩm qua ProductRepository.
-- **CartService:** đọc giỏ qua cache, thêm/cập nhật/xóa item, kiểm tra quantity/stock và yêu cầu evict sau khi ghi thành công.
-- **Repository interfaces:** UserRepository, ProductRepository, CartRepository và CartItemRepository chỉ trao đổi domain model, List và Optional; không kế thừa Spring Data repository.
-- **Các abstraction bổ trợ:** PasswordHasher, TokenService và CartCache che giấu BCrypt, JWT và Redis.
+### Ví dụ đăng ký và đăng nhập
 
-Service nhận dependency qua constructor, không có Spring annotation. CartService luôn xác định cart thao tác bằng `findByUserId(userId)`; user ID tại biên HTTP đến từ principal đã được xác thực, không đến từ header X-User-Id hay request body.
+```http
+POST /api/auth/register
+Content-Type: application/json
 
-### Infrastructure và Data Access
+{
+  "username": "demo_user",
+  "password": "<password>"
+}
+```
 
-Các thành phần nằm trong `infrastructure`:
+Đăng ký thành công trả `201 Created`:
 
-- **Persistence:** các RepositoryAdapter implement Business repository và gọi JpaRepository tương ứng. Adapter chuyển đổi Entity ↔ Domain bằng các hàm mapping nội bộ; CartRepositoryAdapter đọc thêm cart_items để dựng Cart có danh sách items.
-- **Database mapping:** UserEntity, ProductEntity, CartEntity và CartItemEntity chứa annotation JPA. ID được persistence tạo; Business không tự sinh ID. Cấu hình hiện dùng Hibernate `ddl-auto=update`, chưa có migration có phiên bản.
-- **JWT:** JwtTokenService implement TokenService, ký HS256 và tạo claims subject, username, issuer, thời điểm phát hành, thời điểm hết hạn. TTL mặc định là 15 phút. JwtAuthenticationFilter kiểm tra token Bearer và đặt Long user ID vào SecurityContext.
-- **Spring Security:** session stateless; Cart API yêu cầu xác thực; Auth, Product, Health và tài liệu OpenAPI được public. Các request còn lại bị deny. Form login, HTTP Basic, logout và CSRF bị tắt trong cấu hình API hiện tại.
-- **Cache:** RedisCartCache implement CartCache, lưu JSON với key `cart:user:<userId>` và TTL 5 phút. Cache hit không gia hạn TTL. Lỗi đọc được coi là cache miss; lỗi ghi hoặc evict được ghi log và không ném tiếp từ adapter.
-- **Password hashing:** BCryptPasswordHasher implement PasswordHasher bằng BCryptPasswordEncoder. AuthService chỉ lưu password đã hash qua luồng đăng ký.
+```json
+{
+  "id": 1,
+  "username": "demo_user"
+}
+```
+
+Đăng nhập dùng cùng cấu trúc request và trả token:
+
+```json
+{
+  "token": "<JWT>"
+}
+```
+
+Các API giỏ hàng gửi token qua header:
+
+```http
+Authorization: Bearer <JWT>
+```
+
+### Ví dụ thêm sản phẩm vào giỏ
+
+```http
+POST /api/cart/items
+Authorization: Bearer <JWT>
+Content-Type: application/json
+
+{
+  "productId": 10,
+  "quantity": 2
+}
+```
+
+Response trả lại trạng thái hiện tại của giỏ:
+
+```json
+{
+  "id": 20,
+  "userId": 1,
+  "items": [
+    {
+      "productId": 10,
+      "quantity": 2
+    }
+  ]
+}
+```
+
+Lỗi nghiệp vụ có dạng chung:
+
+```json
+{
+  "status": 404,
+  "message": "Product not found: 10",
+  "timestamp": "2026-10-27T10:00:00Z"
+}
+```
+
+Các mã lỗi chính: `400` cho quantity/tồn kho không hợp lệ, `401` khi đăng nhập hoặc JWT không hợp lệ, `403` khi endpoint bị từ chối, `404` khi không tìm thấy dữ liệu và `409` khi username đã tồn tại.
+
+Tài liệu chi tiết: [docs/api.md](docs/api.md).
+
+Khi ứng dụng đang chạy:
+
+- Swagger UI: <http://localhost:8081/swagger-ui.html>
+- OpenAPI JSON: <http://localhost:8081/v3/api-docs>
 
 ## 5. Mô hình dữ liệu
 
-| Domain | Thuộc tính thực tế | Bảng / ý nghĩa |
-|---|---|---|
-| User | `Long id`, `String username`, `String password` | `users`; password chứa hash khi lưu qua AuthService. |
-| Product | `Long id`, `String name`, `BigDecimal price`, `Integer stock` | `products`; giá và tồn kho hiện tại của sản phẩm. |
-| Cart | `Long id`, `Long userId`, `List<CartItem> items` | `carts` lưu id và user_id; items được adapter tổng hợp từ cart_items. |
-| CartItem | `Long id`, `Long cartId`, `Long productId`, `Integer quantity` | `cart_items`; số lượng một sản phẩm trong một giỏ. |
+```text
+users
+- id (PK)
+- username (unique)
+- password (BCrypt hash)
 
-Quan hệ logic: User sở hữu tối đa một Cart theo unique mapping của user_id; Cart chứa nhiều CartItem; mỗi CartItem tham chiếu một Product qua product_id. Mapping khai báo username duy nhất và cặp `(cart_id, product_id)` duy nhất.
+products
+- id (PK)
+- name
+- price
+- stock
 
-Các Entity dùng ID dạng scalar, không khai báo quan hệ `@OneToMany`, `@ManyToOne` hoặc khóa ngoại qua JPA relationship mapping. Các quan hệ trên mô tả ý nghĩa của các ID và luồng truy vấn; không phải xác nhận rằng database triển khai đã có physical foreign key.
+carts
+- id (PK)
+- user_id (unique)
 
-CartItem không chứa giá tại thời điểm thêm. Cart không chứa tổng tiền. Việc lưu Cart không tự lưu cả danh sách items; CartService lưu hoặc xóa từng CartItem qua repository riêng.
-
-## 6. Luồng xử lý nghiệp vụ
-
-### 6.1. Đăng nhập và nhận JWT
-
-```mermaid
-sequenceDiagram
-    participant C as Client
-    participant P as AuthController
-    participant S as AuthService
-    participant R as UserRepository / JPA Adapter
-    participant D as Database
-    participant H as PasswordHasher / BCrypt
-    participant T as TokenService / JWT
-    C->>P: POST /api/auth/login
-    P->>S: login(username, password)
-    S->>R: findByUsername(username)
-    R->>D: Truy vấn users
-    D-->>R: User hoặc không tồn tại
-    R-->>S: Optional User
-    alt User không tồn tại
-        S-->>P: AuthenticationException
-        P-->>C: HTTP 401 qua Exception Handler
-    else User tồn tại
-        S->>H: matches(password, storedHash)
-        H-->>S: Kết quả so khớp
-        alt Password sai
-            S-->>P: AuthenticationException
-            P-->>C: HTTP 401 qua Exception Handler
-        else Password đúng
-            S->>T: generateToken(user)
-            T-->>S: JWT đã ký
-            S-->>P: Token
-            P-->>C: HTTP 200 / LoginResponse
-        end
-    end
+cart_items
+- id (PK)
+- cart_id
+- product_id
+- quantity
+- unique(cart_id, product_id)
 ```
 
-AuthService không biết token được tạo bằng JWT. Ở các request Cart tiếp theo, filter kiểm tra JWT trước Controller và lấy user ID từ subject. Không có truy vấn lại tài khoản trong database ở filter hiện tại.
+Các quan hệ được lưu bằng scalar ID. Entity không dùng `@OneToMany` hoặc `@ManyToOne`; repository adapter chịu trách nhiệm ghép `Cart` với danh sách `CartItem`.
 
-### 6.2. Thêm sản phẩm vào giỏ
+## 6. Chạy bằng Docker
 
-Sơ đồ mô tả đường xử lý thành công; các bước kiểm tra không đạt sẽ kết thúc bằng Business exception.
+Yêu cầu: Docker và Docker Compose.
 
-```mermaid
-sequenceDiagram
-    participant C as Client
-    participant F as JWT / Spring Security
-    participant P as CartController
-    participant S as CartService
-    participant R as Business Repositories / JPA Adapters
-    participant D as Database
-    participant K as CartCache / Redis
-    C->>F: POST /api/cart/items + Bearer JWT
-    F->>P: Request và Long user principal
-    P->>S: addItem(userId, productId, quantity)
-    S->>S: Kiểm tra quantity lớn hơn 0
-    S->>R: ProductRepository.findById(productId)
-    R->>D: Đọc Product
-    D-->>R: Product
-    R-->>S: Product
-    S->>S: Kiểm tra quantity không vượt stock
-    S->>R: CartRepository.findByUserId(userId)
-    R->>D: Đọc Cart và items
-    D-->>R: Cart hoặc không tồn tại
-    R-->>S: Optional Cart
-    opt Chưa có Cart
-        S->>R: CartRepository.save(cart rỗng)
-        R->>D: Lưu Cart
-        D-->>R: Cart có ID
-        R-->>S: Cart
-    end
-    S->>R: CartItemRepository.findByCartIdAndProductId
-    R->>D: Đọc item theo cart và product
-    D-->>R: Item hoặc không tồn tại
-    R-->>S: Optional CartItem
-    S->>S: Cộng số lượng nếu item đã có, kiểm tra tổng với stock
-    S->>R: CartItemRepository.save(item)
-    R->>D: Lưu item
-    D-->>R: Item đã lưu
-    R-->>S: CartItem
-    S->>S: Đồng bộ Cart.items trong memory
-    S->>K: evict(userId)
-    K->>K: Xóa key cache, ghi log nếu lỗi
-    S-->>P: Cart sau thay đổi
-    P-->>C: HTTP 200 / CartResponse
+Tạo file môi trường từ mẫu:
+
+```bash
+cp .env.example .env
 ```
 
-Quantity không hợp lệ bị từ chối trước repository call. Product thiếu trả lỗi not-found; quantity ban đầu hoặc tổng sau khi cộng vượt stock trả lỗi insufficient-stock. Service không giảm stock. Eviction được gọi sau save thành công; GET tiếp theo sẽ đọc database nếu key đã bị xóa.
+Điền các giá trị còn trống trong `.env`:
 
-### 6.3. Truy vấn giỏ với Cache-Aside
-
-```mermaid
-sequenceDiagram
-    participant C as Client
-    participant F as JWT / Spring Security
-    participant P as CartController
-    participant S as CartService
-    participant K as CartCache / Redis
-    participant R as CartRepository / JPA Adapter
-    participant D as Database
-    C->>F: GET /api/cart + Bearer JWT
-    F->>P: Request và Long user principal
-    P->>S: getCartByUserId(userId)
-    S->>K: get(userId)
-    alt Cache hit
-        K-->>S: Cart từ JSON cache
-    else Cache miss hoặc lỗi đọc cache
-        K-->>S: null
-        S->>R: findByUserId(userId)
-        R->>D: Đọc Cart và cart_items
-        D-->>R: Dữ liệu hoặc không có Cart
-        R-->>S: Optional Cart
-        opt Chưa có Cart
-            S->>R: save(cart rỗng)
-            R->>D: Lưu Cart mới
-            D-->>R: Cart có ID
-            R-->>S: Cart
-        end
-        S->>K: put(userId, cart)
-        K->>K: Lưu JSON với TTL 5 phút, ghi log nếu lỗi
-    end
-    S-->>P: Cart
-    P-->>C: HTTP 200 / CartResponse
+```dotenv
+MYSQL_ROOT_PASSWORD=<root-password>
+MYSQL_PASSWORD=<app-password>
+JWT_SECRET=<base64-secret>
 ```
 
-GET cart có thể tạo dữ liệu khi user chưa có giỏ. Redis không quyết định dữ liệu lưu bền vững. Add, update và delete đọc qua repository, đồng bộ Cart.items rồi evict; chúng không cập nhật trực tiếp giá trị cache bằng response mới.
+`JWT_SECRET` phải là Base64 của ít nhất 32 byte ngẫu nhiên. Không commit file `.env` hoặc secret thật.
 
-## 7. Các quyết định kiến trúc
+Khởi động hệ thống:
 
-| Problem — Vấn đề | Quality Attribute | Solution — Giải pháp hiện tại | Trade-off — Đánh đổi |
-|---|---|---|---|
-| Xác định danh tính khi gọi Cart API | Security, Extensibility | JWT Bearer, kiểm tra chữ ký/issuer/expiry, principal chứa user ID, session stateless | Phải quản lý khóa và thời hạn; chưa có thu hồi token, refresh token hoặc kiểm tra user còn tồn tại tại mỗi request. |
-| Business bị gắn với cách truy vấn database | Maintainability, Testability | Repository Pattern; adapter chuyển Entity ↔ Domain | Thêm interface và mapping; đổi persistence vẫn phải kiểm tra tương thích hành vi của contract. |
-| Service phụ thuộc trực tiếp JWT, BCrypt hoặc Redis | Maintainability, Extensibility | Dependency Inversion qua TokenService, PasswordHasher, CartCache và constructor injection | Cần cấu hình nối bean và duy trì contract giữa các implementation. |
-| Truy vấn lặp lại cùng một giỏ | Performance | Redis Cache-Aside, TTL 5 phút, evict sau ghi | Tăng chi phí mạng/JSON và vận hành; cache có thể cũ khi eviction lỗi hoặc request chạy đồng thời; chưa có benchmark Kaggle hoặc phép đo so sánh bật/tắt cache. |
-| Trộn HTTP, nghiệp vụ và persistence | Maintainability, Testability | Layered Architecture; Controller dùng DTO/service, Business Java thuần, Data Access ở adapters | Tăng số thành phần và công việc chuyển đổi dữ liệu. |
-| Quy tắc nghiệp vụ và lỗi HTTP cần ranh giới rõ | Maintainability, Security | Service kiểm tra quantity/stock; Business exception được handler chuyển sang HTTP; catch-all dùng message chung | Validation input chưa đầy đủ; lỗi Security và MVC chưa được chuẩn hóa hoàn toàn cùng ErrorResponse. |
+```bash
+docker compose up --build
+```
 
-## 8. Tổng quan API
+Kiểm tra:
 
-| HTTP Method | Endpoint | Chức năng | Yêu cầu xác thực |
-|---|---|---|---|
-| POST | `/api/auth/register` | Đăng ký tài khoản | Public |
-| POST | `/api/auth/login` | Đăng nhập và nhận token | Public |
-| GET | `/api/products` | Danh sách sản phẩm | Public |
-| GET | `/api/products/{id}` | Chi tiết sản phẩm | Public |
-| GET | `/api/cart` | Giỏ của người dùng hiện tại | Bearer JWT |
-| POST | `/api/cart/items` | Thêm sản phẩm hoặc cộng số lượng | Bearer JWT |
-| PUT | `/api/cart/items/{productId}` | Thay số lượng item hiện có | Bearer JWT |
-| DELETE | `/api/cart/items/{productId}` | Xóa item khỏi giỏ | Bearer JWT |
-| GET | `/api/health` | Trạng thái cố định UP | Public |
+```bash
+curl http://localhost:8081/api/health
+```
 
-OpenAPI khai báo scheme HTTP Bearer với bearerFormat JWT và security requirement cho bốn Cart operations; Swagger UI có chức năng Authorize. Năm operations còn lại không yêu cầu Bearer. Chi tiết DTO và HTTP response được giữ trong [tài liệu API](docs/api.md).
+Kết quả mong đợi:
 
-## 9. Giới hạn và hướng phát triển
+```json
+{"status":"UP"}
+```
 
-### Hiện trạng
+Docker Compose khởi động ba service: backend, MySQL và Redis. Chi tiết xem tại [docs/docker.md](docs/docker.md).
 
-- Thao tác cập nhật giỏ chưa có transaction bao trùm hoặc kiểm soát đồng thời. Khi khách mở hai tab và cùng thêm sản phẩm, số lượng có thể bị mất cập nhật.
-- API thêm sản phẩm chưa hỗ trợ idempotency key. Nếu request được gửi lại do mạng chậm hoặc khách bấm nhiều lần, số lượng có thể bị cộng trùng.
-- Cache invalidation đang là best-effort, chưa có cơ chế retry khi eviction thất bại. Giỏ hàng có thể hiển thị dữ liệu cũ đến hết TTL; request đọc đồng thời cũng có thể ghi lại snapshot cũ sau eviction.
-- Authentication hiện dùng JWT access token, chưa có refresh token. Khi token hết hạn, khách phải đăng nhập lại để tiếp tục thao tác với giỏ hàng.
+## 7. Kiểm thử
 
-### Đề xuất cho giai đoạn tiếp theo
+Chạy toàn bộ automated tests:
 
-1. Hai tab cùng thêm hàng: có thể mất cập nhật số lượng → bổ sung transaction và kiểm soát đồng thời.
-2. Mạng chậm, khách bấm thêm hai lần: sản phẩm bị cộng trùng → hỗ trợ idempotency key.
-3. Redis lỗi sau khi sửa giỏ: khách vẫn thấy số lượng cũ → evict sau commit, retry khi thất bại.
-4. JWT hết hạn khi đang mua: khách phải đăng nhập lại → bổ sung refresh token.
+```bash
+./mvnw test
+```
 
-Các mục đề xuất chưa được triển khai trong Phase 1. Tài liệu bổ trợ được giữ tại [mục lục docs](docs/README.md), [kiến trúc chi tiết](docs/architecture.md), [API](docs/api.md)\
+Trên Windows PowerShell:
+
+```powershell
+.\mvnw.cmd test
+```
+
+Test hiện bao phủ business service, controller, JWT, authentication filter, SecurityFilterChain, OpenAPI security và Spring application context.
+
+Kịch bản kiểm thử tải bằng Locust đã được chuẩn bị trong thư mục [`load-testing`](load-testing/README.md) để chạy trên Kaggle CPU.
+
+## 8. Giới hạn của Phase 1
+
+- Chưa có API tạo/cập nhật sản phẩm và chưa có dữ liệu seed mặc định.
+- Chưa có checkout, order, thanh toán hoặc tính tổng tiền.
+- Chưa có refresh token và cơ chế thu hồi access token.
+- Chưa xử lý lost update khi nhiều request cùng sửa một giỏ.
+- Chưa có idempotency key cho thao tác thêm sản phẩm.
+- Cache eviction đang best-effort; khi Redis lỗi, dữ liệu trong MySQL vẫn được ưu tiên nhưng cache có thể cũ đến khi hết TTL.
+- Hibernate đang dùng `ddl-auto=update`; chưa có database migration có phiên bản.
+
+Đây là các vấn đề dễ thấy để tiếp tục đánh giá và cải tiến thuộc tính chất lượng ở Phase 2, tập trung vào concurrency, reliability, performance và security.
+
+Tài liệu thêm: [kiến trúc](docs/architecture.md) · [API](docs/api.md) · [kiểm thử](docs/testing.md) · [Docker](docs/docker.md)
