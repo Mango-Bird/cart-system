@@ -1,4 +1,4 @@
-# Cart System — Phase 1
+# Cart System - Phase 1
 
 Cart System là backend REST API cho một giỏ hàng thương mại điện tử đơn giản. Người dùng có thể đăng ký, đăng nhập, xem sản phẩm và quản lý giỏ hàng của chính mình.
 
