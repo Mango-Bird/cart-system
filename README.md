@@ -259,16 +259,17 @@ Test hiện bao phủ business service, controller, JWT, authentication filter, 
 
 Kịch bản kiểm thử tải bằng Locust đã được chuẩn bị trong thư mục [`load-testing`](load-testing/README.md) để chạy trên Kaggle CPU.
 
-## 8. Giới hạn của Phase 1
+## 8. Đề xuất cho Phase 2
 
-- Chưa có API tạo/cập nhật sản phẩm và chưa có dữ liệu seed mặc định.
-- Chưa có checkout, order, thanh toán hoặc tính tổng tiền.
-- Chưa có refresh token và cơ chế thu hồi access token.
-- Chưa xử lý lost update khi nhiều request cùng sửa một giỏ.
-- Chưa có idempotency key cho thao tác thêm sản phẩm.
-- Cache eviction đang best-effort; khi Redis lỗi, dữ liệu trong MySQL vẫn được ưu tiên nhưng cache có thể cũ đến khi hết TTL.
-- Hibernate đang dùng `ddl-auto=update`; chưa có database migration có phiên bản.
+Phase 2 tập trung giải quyết các vấn đề dễ gặp khi hệ thống được sử dụng trong thực tế:
 
-Đây là các vấn đề dễ thấy để tiếp tục đánh giá và cải tiến thuộc tính chất lượng ở Phase 2, tập trung vào concurrency, reliability, performance và security.
+| Bài toán | Ví dụ thực tế | Hướng nâng cấp |
+|---|---|---|
+| 1. Chịu tải khi sale | Nhiều khách cùng xem sản phẩm và giỏ khiến phản hồi chậm | Đo tải, xác định điểm nghẽn; triển khai Nginx và nhiều backend khi phù hợp. |
+| 2. Duy trì dịch vụ khi backend lỗi | Một backend dừng khiến khách không thể thao tác | Chạy nhiều instance, dùng health check và chuyển request sang instance còn hoạt động. |
+| 3. Giữ đúng số lượng khi thao tác đồng thời | Khách mở hai tab, cùng thêm hàng nhưng số lượng bị mất cập nhật | Bổ sung transaction và kiểm soát cập nhật đồng thời. |
+| 4. Không thêm hàng trùng khi mạng chậm | Khách bấm lại hoặc ứng dụng retry cùng request | Dùng idempotency key cho API thêm sản phẩm. |
+| 5. Giỏ hàng hiển thị dữ liệu mới | Đã sửa số lượng nhưng Redis vẫn trả dữ liệu cũ | Invalidate cache sau commit, phục hồi khi eviction lỗi và xử lý cuộc đua cache. |
+
 
 Tài liệu thêm: [kiến trúc](docs/architecture.md) · [API](docs/api.md) · [kiểm thử](docs/testing.md) · [Docker](docs/docker.md)
