@@ -272,4 +272,3 @@ Phase 2 tập trung giải quyết các vấn đề dễ gặp khi hệ thống 
 | 5. Giỏ hàng hiển thị dữ liệu mới | Đã sửa số lượng nhưng Redis vẫn trả dữ liệu cũ | Invalidate cache sau commit, phục hồi khi eviction lỗi và xử lý cuộc đua cache. |
 
 
-Tài liệu thêm: [kiến trúc](docs/architecture.md) · [API](docs/api.md) · [kiểm thử](docs/testing.md) · [Docker](docs/docker.md)
