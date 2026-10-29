@@ -77,7 +77,7 @@ Khi thêm, sửa hoặc xóa item, dữ liệu được ghi vào MySQL trước 
 
 ## 4. API
 
-Base URL mặc định: `http://localhost:8081`.
+Base URL mặc định: `http://localhost:18081`.
 
 | Method | Endpoint | Chức năng | Xác thực |
 |---|---|---|---|
@@ -170,8 +170,8 @@ Tài liệu chi tiết: [docs/api.md](docs/api.md).
 
 Khi ứng dụng đang chạy:
 
-- Swagger UI: <http://localhost:8081/swagger-ui.html>
-- OpenAPI JSON: <http://localhost:8081/v3/api-docs>
+- Swagger UI: <http://localhost:18081/swagger-ui.html>
+- OpenAPI JSON: <http://localhost:18081/v3/api-docs>
 
 ## 5. Mô hình dữ liệu
 
@@ -230,7 +230,7 @@ docker compose up --build
 Kiểm tra:
 
 ```bash
-curl http://localhost:8081/api/health
+curl http://localhost:18081/api/health
 ```
 
 Kết quả mong đợi:
