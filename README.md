@@ -257,8 +257,6 @@ Trên Windows PowerShell:
 
 Test hiện bao phủ business service, controller, JWT, authentication filter, SecurityFilterChain, OpenAPI security và Spring application context.
 
-Kịch bản kiểm thử tải bằng Locust đã được chuẩn bị trong thư mục [`load-testing`](load-testing/README.md) để chạy trên Kaggle CPU.
-
 ## 8. Đề xuất cho Phase 2
 
 Phase 2 tập trung giải quyết các vấn đề dễ gặp khi hệ thống được sử dụng trong thực tế:
