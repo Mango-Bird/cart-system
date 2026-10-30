@@ -91,77 +91,10 @@ Base URL mặc định: `http://localhost:18081`.
 | DELETE | `/api/cart/items/{productId}` | Xóa sản phẩm khỏi giỏ | Bearer JWT |
 | GET | `/api/health` | Kiểm tra trạng thái backend | Public |
 
-### Ví dụ đăng ký và đăng nhập
-
-```http
-POST /api/auth/register
-Content-Type: application/json
-
-{
-  "username": "demo_user",
-  "password": "<password>"
-}
-```
-
-Đăng ký thành công trả `201 Created`:
-
-```json
-{
-  "id": 1,
-  "username": "demo_user"
-}
-```
-
-Đăng nhập dùng cùng cấu trúc request và trả token:
-
-```json
-{
-  "token": "<JWT>"
-}
-```
-
-Các API giỏ hàng gửi token qua header:
+Các API giỏ hàng gửi JWT qua header:
 
 ```http
 Authorization: Bearer <JWT>
-```
-
-### Ví dụ thêm sản phẩm vào giỏ
-
-```http
-POST /api/cart/items
-Authorization: Bearer <JWT>
-Content-Type: application/json
-
-{
-  "productId": 10,
-  "quantity": 2
-}
-```
-
-Response trả lại trạng thái hiện tại của giỏ:
-
-```json
-{
-  "id": 20,
-  "userId": 1,
-  "items": [
-    {
-      "productId": 10,
-      "quantity": 2
-    }
-  ]
-}
-```
-
-Lỗi nghiệp vụ có dạng chung:
-
-```json
-{
-  "status": 404,
-  "message": "Product not found: 10",
-  "timestamp": "2026-10-27T10:00:00Z"
-}
 ```
 
 Các mã lỗi chính: `400` cho quantity/tồn kho không hợp lệ, `401` khi đăng nhập hoặc JWT không hợp lệ, `403` khi endpoint bị từ chối, `404` khi không tìm thấy dữ liệu và `409` khi username đã tồn tại.
@@ -171,7 +104,6 @@ Tài liệu chi tiết: [docs/api.md](docs/api.md).
 Khi ứng dụng đang chạy:
 
 - Swagger UI: <http://localhost:18081/swagger-ui.html>
-- OpenAPI JSON: <http://localhost:18081/v3/api-docs>
 
 ## 5. Mô hình dữ liệu
 
@@ -233,11 +165,7 @@ Kiểm tra:
 curl http://localhost:18081/api/health
 ```
 
-Kết quả mong đợi:
-
-```json
-{"status":"UP"}
-```
+Kết quả mong đợi: API trả trạng thái `UP`.
 
 Docker Compose khởi động ba service: backend, MySQL và Redis. Chi tiết xem tại [docs/docker.md](docs/docker.md).
 

@@ -1,4 +1,4 @@
-# REST API Cart System — Phase 1
+# REST API Cart System - Phase 1
 
 Base URL mặc định: `http://localhost:8081`. Request body dùng `Content-Type: application/json`. ID và dữ liệu trong ví dụ chỉ minh họa cấu trúc, không phải dữ liệu seed hoặc kết quả runtime được đảm bảo.
 
@@ -36,11 +36,11 @@ Service kiểm tra username đã tồn tại, BCrypt hash password trước khi 
 {"id":1,"username":"demo_user"}
 ```
 
-Username đã tồn tại khi Service kiểm tra → 409 `UserAlreadyExistsException`. Chưa có annotation validation cho username rỗng/null, độ dài hoặc password. Lỗi unique constraint trong cuộc đua register chưa được chuyển riêng thành 409.
+Username đã tồn tại khi Service kiểm tra -> 409 `UserAlreadyExistsException`. Chưa có annotation validation cho username rỗng/null, độ dài hoặc password. Lỗi unique constraint trong cuộc đua register chưa được chuyển riêng thành 409.
 
 ### POST `/api/auth/login`
 
-LoginRequest có `String username`, `String password`, cùng cấu trúc body đăng ký. Username không tồn tại hoặc password không khớp → 401 với message `Invalid username or password`.
+LoginRequest có `String username`, `String password`, cùng cấu trúc body đăng ký. Username không tồn tại hoặc password không khớp -> 401 với message `Invalid username or password`.
 
 Response LoginResponse:
 
@@ -64,7 +64,7 @@ ProductResponse có `Long id`, `String name`, `BigDecimal price`, `Integer stock
 
 ### GET `/api/products/{id}`
 
-Nhận `Long id`, trả một ProductResponse. Không tìm thấy → 404 với message `Product not found: <id>`. Không có API tạo sản phẩm; cần dữ liệu chuẩn bị bên ngoài API này.
+Nhận `Long id`, trả một ProductResponse. Không tìm thấy -> 404 với message `Product not found: <id>`. Không có API tạo sản phẩm; cần dữ liệu chuẩn bị bên ngoài API này.
 
 ## Cart API
 
@@ -77,8 +77,6 @@ CartResponse có `Long id`, `Long userId`, `List<CartItemResponse> items`. Item 
 ### GET `/api/cart`
 
 Cache hit trả cart từ Redis. Miss đọc database; nếu user chưa có cart, Service tạo giỏ rỗng, cache và trả 200. Vì vậy GET này có thể tạo dữ liệu. Cart rỗng trả `items: []`.
-
-OpenAPI hiện vẫn mô tả 404 cho endpoint này và Presentation test có thể mock Service ném `CartNotFoundException`; đường xử lý Service thực tế khi chưa có cart tạo giỏ rỗng. Tài liệu này ghi theo implementation.
 
 ### POST `/api/cart/items`
 
@@ -93,7 +91,7 @@ AddCartItemRequest:
 - Nếu chưa có cart, tạo cart; item hiện có được cộng quantity, rồi kiểm tra tổng quantity không vượt stock.
 - Save item, đồng bộ danh sách trong Cart và evict cache sau write thành công.
 
-Quantity không hợp lệ hoặc stock không đủ → 400; product không tồn tại → 404. OpenAPI mô tả cả cart-not-found, nhưng Service tự tạo cart nên trường hợp đó không phát sinh từ thiếu cart ở method này.
+Quantity không hợp lệ hoặc stock không đủ -> 400; product không tồn tại -> 404.
 
 ### PUT `/api/cart/items/{productId}`
 
@@ -105,11 +103,11 @@ UpdateCartItemRequest chỉ có quantity:
 
 Quantity phải lớn hơn 0; Service tìm product, tìm cart theo user ID, tìm item theo `(cartId, productId)`, kiểm tra stock, rồi thay quantity mới. Không cộng quantity ở thao tác update. Response là CartResponse sau cập nhật; evict cache sau save.
 
-Quantity/stock không hợp lệ → 400; thiếu product/cart/item → 404. PUT không tạo item hoặc cart mới.
+Quantity/stock không hợp lệ -> 400; thiếu product/cart/item -> 404. PUT không tạo item hoặc cart mới.
 
 ### DELETE `/api/cart/items/{productId}`
 
-Không có request body. Tìm cart theo user và item theo `(cartId, productId)`, xóa item, cập nhật danh sách trong Cart, evict cache rồi trả CartResponse. Không xóa Product hoặc Cart. Thiếu cart/item → 404; method không cần lookup Product.
+Không có request body. Tìm cart theo user và item theo `(cartId, productId)`, xóa item, cập nhật danh sách trong Cart, evict cache rồi trả CartResponse. Không xóa Product hoặc Cart. Thiếu cart/item -> 404; method không cần lookup Product.
 
 Thêm/cập nhật item chỉ kiểm tra stock; không giữ chỗ hoặc giảm stock của Product. Không có tính toán price snapshot, subtotal hoặc tổng giỏ.
 
@@ -139,7 +137,7 @@ Handler trả `int status`, `String message`, `Instant timestamp`:
 | InvalidCartItemException, InsufficientStockException | 400 |
 | Exception không có handler cụ thể | 500, message `Internal server error` |
 
-Lỗi JWT/access ở SecurityFilterChain dùng `sendError`: Cart thiếu JWT hoặc JWT không hợp lệ → 401; endpoint bị deny với user đã authenticated → 403. Không bảo đảm lỗi Security có cùng JSON ErrorResponse của ControllerAdvice.
+Lỗi JWT/access ở SecurityFilterChain dùng `sendError`: Cart thiếu JWT hoặc JWT không hợp lệ -> 401; endpoint bị deny với user đã authenticated -> 403. Không bảo đảm lỗi Security có cùng JSON ErrorResponse của ControllerAdvice.
 
 ## Giới hạn validation và Swagger
 

@@ -1,4 +1,4 @@
-# Kiến trúc Cart System — Phase 1
+# Kiến trúc Cart System - Phase 1
 
 ## Tổng quan và hướng phụ thuộc
 
@@ -161,7 +161,7 @@ Handler map Business exception sang 400, 401, 404, 409; catch-all trả 500 cùn
 | Framework ảnh hưởng business rules | Maintainability | Domain/Service thuần Java; ports và constructor injection | Cần mapping và bean configuration |
 | Khó test business với DB/cache | Testability | Mock Business interfaces trong unit tests | Không kiểm chứng persistence/cache thực tế |
 | Xác định chủ giỏ từ client | Security | JWT principal qua filter và Spring Security | Quản lý khóa/expiry; chưa có revoke hoặc user lookup |
-| Lặp truy vấn cart | Performance | Redis Cache-Aside, TTL 5 phút | Thêm serialize/network; chưa có benchmark |
+| Lặp truy vấn cart | Performance | Redis Cache-Aside, TTL 5 phút | Thêm serialize/network; benchmark hiện mới ở mức Smoke, chưa so sánh khi bật và tắt cache |
 | Cache khác dữ liệu sau write | Data consistency | Database lưu chính, evict sau write | Eviction lỗi và race có thể giữ cache cũ |
 | Tách dữ liệu HTTP và domain | Maintainability / Security | DTO riêng; không trả password hoặc ID nội bộ item | Cần chuyển đổi trong Controller |
 | Chuẩn bị schema nhanh cho Phase 1 | Maintainability | Hibernate `ddl-auto=update` | Chưa có lịch sử migrations và quy trình rollback schema |

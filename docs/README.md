@@ -1,10 +1,10 @@
-# Tài liệu Cart System — Phase 1
+# Tài liệu Cart System - Phase 1
 
 Bộ tài liệu mô tả source hiện tại, cách chạy và phạm vi kiểm chứng. Thông tin triển khai được đối chiếu với Controller, DTO, Service, adapters, cấu hình và test source; kết quả chạy test ghi riêng theo ngày.
 
 ## Mục lục và thứ tự đọc
 
-1. [README dự án](../README.md): chức năng, kiến trúc, luồng xử lý và giới hạn Phase 1.
+1. [README dự án](../README.md): chức năng, kiến trúc, API tổng quan và các đề xuất cho Phase 2.
 2. [Kiến trúc](architecture.md): phân tầng, Domain, Repository, JWT, Cache-Aside và các quyết định thiết kế.
 3. [REST API](api.md): chín endpoint, DTO, authentication, quy tắc quantity/stock và lỗi thực tế.
 4. [Kiểm thử](testing.md): automated tests, môi trường, kết quả kiểm chứng và kịch bản manual/Redis.
