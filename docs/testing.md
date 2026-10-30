@@ -1,4 +1,4 @@
-# Kiểm thử Cart System — Phase 1
+# Kiểm thử Cart System - Phase 1
 
 ## Chiến lược và phạm vi
 
